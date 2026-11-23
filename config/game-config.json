@@ -1,0 +1,605 @@
+{
+  "adPoints": [
+    {
+      "id": "revive",
+      "limitPerRun": 1
+    },
+    {
+      "id": "reroll",
+      "limitPerRun": 2
+    },
+    {
+      "id": "recipe_hint",
+      "limitPerDay": 3
+    },
+    {
+      "id": "free_stall",
+      "limitPerRun": 1
+    },
+    {
+      "id": "double_settle",
+      "limitPerRun": 1
+    },
+    {
+      "id": "research_skip",
+      "limitPerDay": 3
+    }
+  ],
+  "dishes": [
+    {
+      "cooldownGrowthPerLevel": 0.94,
+      "cooldownSec": 0.55,
+      "damage": 12,
+      "damageGrowthPerLevel": 1.25,
+      "id": "skewer",
+      "inPrototype": true,
+      "maxLevel": 5,
+      "name": "烤串",
+      "pierce": 1,
+      "projectileSpeed": 700,
+      "type": "projectile"
+    },
+    {
+      "burnDps": 4,
+      "burnDurationSec": 3,
+      "cooldownGrowthPerLevel": 0.94,
+      "cooldownSec": 1.0,
+      "damage": 6,
+      "damageGrowthPerLevel": 1.25,
+      "id": "chili",
+      "inPrototype": true,
+      "maxLevel": 5,
+      "name": "辣椒粉",
+      "radius": 130,
+      "type": "aura_dot"
+    },
+    {
+      "cooldownGrowthPerLevel": 1.0,
+      "cooldownSec": 0,
+      "damage": 10,
+      "damageGrowthPerLevel": 1.25,
+      "id": "garlic",
+      "inPrototype": true,
+      "knockback": 120,
+      "maxLevel": 5,
+      "name": "大蒜瓣",
+      "orbitCount": 2,
+      "orbitRadius": 95,
+      "orbitSpeedDegPerSec": 180,
+      "type": "orbit"
+    },
+    {
+      "cooldownGrowthPerLevel": 0.94,
+      "cooldownSec": 4.0,
+      "damage": 8,
+      "damageGrowthPerLevel": 1.25,
+      "freezeDurationSec": 1.2,
+      "id": "iced_beer",
+      "inPrototype": true,
+      "maxLevel": 5,
+      "name": "冰啤酒",
+      "radius": 150,
+      "type": "freeze_aoe"
+    },
+    {
+      "cooldownGrowthPerLevel": 0.94,
+      "cooldownSec": 2.5,
+      "damage": 5,
+      "damageGrowthPerLevel": 1.25,
+      "dotDurationSec": 4,
+      "id": "squid",
+      "inPrototype": false,
+      "maxLevel": 5,
+      "name": "铁板鱿鱼",
+      "radius": 100,
+      "type": "ground_dot"
+    },
+    {
+      "cooldownGrowthPerLevel": 0.94,
+      "cooldownSec": 3.5,
+      "damage": 25,
+      "damageGrowthPerLevel": 1.25,
+      "id": "popcorn",
+      "inPrototype": false,
+      "maxLevel": 5,
+      "name": "爆米花机",
+      "radius": 130,
+      "type": "lobbed_aoe"
+    },
+    {
+      "id": "lobster_dish",
+      "name": "小龙虾",
+      "type": "claw_strike",
+      "damage": 30,
+      "cooldownSec": 2.6,
+      "clawCount": 2,
+      "range": 260,
+      "unlock": "elite_drop",
+      "damageGrowthPerLevel": 1.25,
+      "cooldownGrowthPerLevel": 0.94,
+      "maxLevel": 5,
+      "inPrototype": false
+    },
+    {
+      "id": "cold_noodle",
+      "name": "烤冷面",
+      "type": "boomerang",
+      "damage": 14,
+      "cooldownSec": 1.6,
+      "projectileSpeed": 620,
+      "damageGrowthPerLevel": 1.25,
+      "cooldownGrowthPerLevel": 0.94,
+      "maxLevel": 5,
+      "inPrototype": false
+    },
+    {
+      "id": "stinky_tofu",
+      "name": "臭豆腐",
+      "type": "mine_cloud",
+      "damage": 7,
+      "cooldownSec": 2.2,
+      "radius": 90,
+      "cloudDurationSec": 4,
+      "slowFactor": 0.2,
+      "damageGrowthPerLevel": 1.25,
+      "cooldownGrowthPerLevel": 0.94,
+      "maxLevel": 5,
+      "inPrototype": false
+    },
+    {
+      "id": "tanghulu",
+      "name": "糖葫芦",
+      "type": "chain",
+      "damage": 16,
+      "cooldownSec": 1.4,
+      "chainCount": 3,
+      "chainRange": 170,
+      "damageGrowthPerLevel": 1.25,
+      "cooldownGrowthPerLevel": 0.94,
+      "maxLevel": 5,
+      "inPrototype": false
+    },
+    {
+      "id": "oyster",
+      "name": "生蚝",
+      "type": "nova",
+      "damage": 11,
+      "cooldownSec": 2.2,
+      "projectileCount": 8,
+      "projectileSpeed": 520,
+      "damageGrowthPerLevel": 1.25,
+      "cooldownGrowthPerLevel": 0.94,
+      "maxLevel": 5,
+      "inPrototype": false
+    },
+    {
+      "id": "takoyaki",
+      "name": "章鱼小丸子",
+      "type": "bouncer",
+      "damage": 9,
+      "cooldownSec": 2.0,
+      "ballCount": 2,
+      "ballDurationSec": 5,
+      "ballSpeed": 380,
+      "damageGrowthPerLevel": 1.25,
+      "cooldownGrowthPerLevel": 0.94,
+      "maxLevel": 5,
+      "inPrototype": false
+    }
+  ],
+  "enemies": [
+    {
+      "coins": 1,
+      "damageToPlayer": 6,
+      "expDrop": "normal",
+      "hp": 18,
+      "id": "rat",
+      "inPrototype": true,
+      "name": "老鼠",
+      "speed": 120
+    },
+    {
+      "coins": 0,
+      "damageToPlayer": 3,
+      "expDrop": "normal",
+      "hp": 6,
+      "id": "roach",
+      "inPrototype": true,
+      "name": "蟑螂",
+      "speed": 95
+    },
+    {
+      "coins": 3,
+      "damageToPlayer": 14,
+      "expDrop": "normal",
+      "hp": 120,
+      "id": "drunk",
+      "inPrototype": false,
+      "movePattern": "sine",
+      "name": "醉汉",
+      "speed": 55
+    },
+    {
+      "behavior": "steal_drop_and_flee",
+      "coins": 5,
+      "damageToPlayer": 4,
+      "expDrop": "normal",
+      "hp": 40,
+      "id": "thief",
+      "inPrototype": false,
+      "name": "偷吃贼",
+      "speed": 150
+    },
+    {
+      "coins": 50,
+      "damageToPlayer": 25,
+      "elite": true,
+      "expDrop": "big",
+      "hp": 1500,
+      "id": "big_eater",
+      "inPrototype": true,
+      "name": "大胃王",
+      "speed": 45
+    }
+  ],
+  "engine": "cocos-creator-3.8",
+  "global": {
+    "breakAfterWaves": [
+      3,
+      6,
+      9
+    ],
+    "breakDurationSec": 25,
+    "expBig": 10,
+    "expNormal": 1,
+    "expToLevelBase": 5,
+    "expToLevelPerLevel": 3,
+    "maxEnemiesOnScreen": 80,
+    "playerHp": 100,
+    "playerPickupRadius": 90,
+    "playerSpeed": 260,
+    "runWaves": 10,
+    "stallHp": 100,
+    "stallTouchDamage": 1,
+    "stallTouchDamageElite": 5,
+    "waveDurationSec": 20,
+    "weaponSlots": 4,
+    "passiveSlots": 4
+  },
+  "levelUpChoiceWeights": {
+    "newDish": 40,
+    "passive": 20,
+    "upgradeDish": 40
+  },
+  "passives": [
+    {
+      "id": "speed",
+      "maxStacks": 3,
+      "name": "移速",
+      "perStack": 0.08
+    },
+    {
+      "id": "pickup",
+      "maxStacks": 3,
+      "name": "拾取范围",
+      "perStack": 0.25
+    },
+    {
+      "id": "maxhp",
+      "maxStacks": 3,
+      "name": "最大生命",
+      "perStack": 20
+    },
+    {
+      "id": "attack",
+      "maxStacks": 3,
+      "name": "攻击",
+      "perStack": 0.1
+    },
+    {
+      "id": "haste",
+      "name": "急速（冷却缩减）",
+      "perStack": -0.05,
+      "maxStacks": 3
+    },
+    {
+      "id": "area",
+      "name": "扩张（范围扩大）",
+      "perStack": 0.1,
+      "maxStacks": 3
+    },
+    {
+      "id": "coins",
+      "name": "招财（金币加成）",
+      "perStack": 0.15,
+      "maxStacks": 3
+    },
+    {
+      "id": "exp",
+      "name": "慧眼（经验加成）",
+      "perStack": 0.12,
+      "maxStacks": 3
+    }
+  ],
+  "recipes": [
+    {
+      "damageMul": 2.2,
+      "desc": "签子全屏穿透+命中灼烧3秒",
+      "from": [
+        "skewer",
+        "chili"
+      ],
+      "id": "malatang",
+      "inPrototype": true,
+      "name": "麻辣烫"
+    },
+    {
+      "damageMul": 2.4,
+      "desc": "大范围旋转火盘",
+      "from": [
+        "squid",
+        "garlic"
+      ],
+      "id": "garlic_squid",
+      "inPrototype": false,
+      "name": "蒜蓉铁板烧"
+    },
+    {
+      "damageMul": 2.0,
+      "desc": "穿透+击退",
+      "from": [
+        "skewer",
+        "garlic"
+      ],
+      "id": "garlic_skewer",
+      "inPrototype": false,
+      "name": "蒜香烤串"
+    },
+    {
+      "damageMul": 2.8,
+      "desc": "冻结+召唤钳夹击",
+      "from": [
+        "iced_beer",
+        "lobster_dish"
+      ],
+      "id": "iced_lobster",
+      "inPrototype": false,
+      "name": "冰镇麻辣小龙虾"
+    },
+    {
+      "damageMul": 2.5,
+      "desc": "连环爆炸",
+      "from": [
+        "chili",
+        "popcorn"
+      ],
+      "id": "fire_squid",
+      "inPrototype": false,
+      "name": "火爆鱿鱼须"
+    },
+    {
+      "damageMul": 2.6,
+      "desc": "冻结后爆裂",
+      "from": [
+        "iced_beer",
+        "chili"
+      ],
+      "id": "ice_fire",
+      "inPrototype": false,
+      "name": "冰火两重天"
+    },
+    {
+      "id": "spicy_lobster",
+      "name": "麻辣小龙虾",
+      "from": [
+        "lobster_dish",
+        "chili"
+      ],
+      "desc": "钳夹击目标+1且命中灼烧3秒",
+      "damageMul": 2.6,
+      "inPrototype": false
+    },
+    {
+      "id": "ice_tanghulu",
+      "name": "冰糖葫芦",
+      "from": [
+        "tanghulu",
+        "iced_beer"
+      ],
+      "desc": "连锁跳跃次数+2，被跳中的敌人冻结1秒",
+      "damageMul": 2.3,
+      "inPrototype": false
+    },
+    {
+      "id": "garlic_oyster",
+      "name": "蒜蓉烤生蚝",
+      "from": [
+        "oyster",
+        "garlic"
+      ],
+      "desc": "环形爆发数量翻倍且附带击退",
+      "damageMul": 2.4,
+      "inPrototype": false
+    },
+    {
+      "id": "tofu_popcorn",
+      "name": "爆浆臭豆腐",
+      "from": [
+        "stinky_tofu",
+        "popcorn"
+      ],
+      "desc": "地雷爆炸生成大范围毒云，云内掉血+减速加深",
+      "damageMul": 2.3,
+      "inPrototype": false
+    },
+    {
+      "id": "tako_squid",
+      "name": "铁板章鱼烧",
+      "from": [
+        "takoyaki",
+        "squid"
+      ],
+      "desc": "丸子弹跳沿途留下油滩，踩中持续掉血",
+      "damageMul": 2.4,
+      "inPrototype": false
+    },
+    {
+      "id": "noodle_skewer",
+      "name": "冷面卷大串",
+      "from": [
+        "cold_noodle",
+        "skewer"
+      ],
+      "desc": "冷面变大加厚，去程回程全穿透，回程伤害翻倍",
+      "damageMul": 2.5,
+      "inPrototype": false
+    }
+  ],
+  "save": {
+    "fields": [
+      "bestWave",
+      "totalCoins",
+      "unlockedDishes",
+      "recipeBookProgress"
+    ],
+    "keyPrefix": "maozhanggui_save_v1"
+  },
+  "stalls": [
+    {
+      "cost": 80,
+      "hp": 60,
+      "id": "milk_tea",
+      "inPrototype": true,
+      "name": "奶茶摊",
+      "radius": 170,
+      "repairCost": 30,
+      "slowFactor": 0.35,
+      "type": "slow_aura"
+    },
+    {
+      "cooldownSec": 3.0,
+      "cost": 120,
+      "damage": 30,
+      "hp": 60,
+      "id": "popcorn_stall",
+      "inPrototype": false,
+      "name": "爆米花机摊",
+      "radius": 140,
+      "repairCost": 45,
+      "type": "aoe_damage"
+    },
+    {
+      "cost": 150,
+      "hp": 60,
+      "id": "speaker",
+      "inPrototype": false,
+      "name": "大音响摊",
+      "radius": 160,
+      "repairCost": 60,
+      "type": "knockback_taunt"
+    }
+  ],
+  "version": "maozhanggui-config-v2",
+  "waves": [
+    {
+      "hpMul": 1.0,
+      "mix": {
+        "rat": 100
+      },
+      "spawnIntervalSec": 1.6,
+      "wave": 1
+    },
+    {
+      "hpMul": 1.35,
+      "mix": {
+        "rat": 80,
+        "roach": 20
+      },
+      "spawnIntervalSec": 1.4,
+      "wave": 2
+    },
+    {
+      "hpMul": 1.7,
+      "mix": {
+        "rat": 60,
+        "roach": 40
+      },
+      "spawnIntervalSec": 1.2,
+      "wave": 3
+    },
+    {
+      "hpMul": 2.05,
+      "mix": {
+        "rat": 50,
+        "roach": 50
+      },
+      "spawnIntervalSec": 1.1,
+      "wave": 4
+    },
+    {
+      "hpMul": 2.4,
+      "mix": {
+        "drunk": 10,
+        "rat": 45,
+        "roach": 45
+      },
+      "spawnIntervalSec": 1.0,
+      "wave": 5
+    },
+    {
+      "hpMul": 2.75,
+      "mix": {
+        "drunk": 15,
+        "rat": 40,
+        "roach": 45
+      },
+      "spawnIntervalSec": 0.9,
+      "wave": 6
+    },
+    {
+      "hpMul": 3.1,
+      "mix": {
+        "drunk": 15,
+        "rat": 35,
+        "roach": 45,
+        "thief": 5
+      },
+      "spawnIntervalSec": 0.85,
+      "wave": 7
+    },
+    {
+      "hpMul": 3.45,
+      "mix": {
+        "drunk": 20,
+        "rat": 30,
+        "roach": 45,
+        "thief": 5
+      },
+      "spawnIntervalSec": 0.8,
+      "wave": 8
+    },
+    {
+      "hpMul": 3.8,
+      "mix": {
+        "drunk": 25,
+        "rat": 30,
+        "roach": 40,
+        "thief": 5
+      },
+      "spawnIntervalSec": 0.7,
+      "wave": 9
+    },
+    {
+      "elite": "big_eater",
+      "eliteAtSec": 5,
+      "hpMul": 4.15,
+      "mix": {
+        "drunk": 20,
+        "rat": 40,
+        "roach": 40
+      },
+      "spawnIntervalSec": 1.2,
+      "wave": 10
+    }
+  ]
+}
