@@ -38,6 +38,11 @@ export class EnemySpawner extends Component {
 
     /** 当前在场的敌人 */
     private readonly activeEnemies: Enemy[] = [];
+    /**
+     * 敌人死亡监听器（外部订阅：掉食材、加金币等）。
+     * Step 4 的 DropManager 挂在这里；死亡结算必须读死亡瞬间的敌人配置。
+     */
+    public readonly deathListeners: ((enemy: Enemy) => void)[] = [];
     /** 排队等待补入的敌人类型 id（达到上限时积累） */
     private readonly pendingIds: string[] = [];
 
@@ -159,6 +164,14 @@ export class EnemySpawner extends Component {
         return best;
     }
 
+    /**
+     * 在场敌人列表（只读用途）：投射物每帧要做命中判定，需要遍历全体。
+     * 调用方只读，不得增删元素。
+     */
+    public get aliveEnemies(): Enemy[] {
+        return this.activeEnemies;
+    }
+
     // ==================== 调试（验收自检用，不属于玩法） ====================
 
     /** 立刻补满到同屏上限，返回补入数量（用于 FPS 自检） */
@@ -273,11 +286,15 @@ export class EnemySpawner extends Component {
         return true;
     }
 
-    /** 敌人死亡：移出在场列表 + 排队补入 */
+    /** 敌人死亡：移出在场列表 + 排队补入 + 通知外部（掉食材等） */
     private onEnemyDeath(enemy: Enemy): void {
         const index = this.activeEnemies.indexOf(enemy);
         if (index >= 0) {
             this.activeEnemies.splice(index, 1);
+        }
+        // 先通知外部做死亡结算（读 enemy.enemyConfig 的 expDrop/coins）
+        for (const listener of this.deathListeners) {
+            listener(enemy);
         }
         while (this.pendingIds.length > 0 && this.activeEnemies.length < GLOBAL.maxEnemiesOnScreen) {
             const id = this.pendingIds.shift();

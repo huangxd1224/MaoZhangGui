@@ -97,7 +97,8 @@ export class Enemy extends Component {
     /** 归还池前清理状态 */
     public deactivate(): void {
         this.alive = false;
-        this.enemyConfig = null;
+        // 注意：**保留 enemyConfig** —— 死亡结算（掉食材/金币/经验）要读它的
+        // expDrop / coins；下次从池里取出时 activate() 会覆盖。
         this.playerNode = null;
         this.stallNode = null;
         this.deathHandler = null;

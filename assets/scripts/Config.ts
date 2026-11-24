@@ -661,6 +661,28 @@ export interface PrototypeOnlyConfig {
     stallAggroRatio: number;
     /** 敌人灰盒上的辨识字（灰盒表现用：老鼠→「鼠」、蟑螂→「蟑」、大胃王→「胃」） */
     enemyGlyphs: { [enemyId: string]: string };
+    /** 开局赠送的菜品 id（Step 4：站着不动就能自动清怪，所以开局就有烤串） */
+    initialWeapons: string[];
+    /** 签子（投射物）色块尺寸 */
+    projectileSize: number;
+    /** 签子最远飞行距离（超出即回收） */
+    projectileMaxTravel: number;
+    /** 投射物对象池预热数量 */
+    projectilePoolSize: number;
+    /** 食材掉落物色块尺寸（普通） */
+    dropSize: number;
+    /** 食材掉落物色块尺寸（大食材 / 精英掉落） */
+    bigDropSize: number;
+    /** 掉落物对象池预热数量 */
+    dropPoolSize: number;
+    /**
+     * 掉落物磁吸半径（像素）。
+     * 食材掉在击杀处，而玩家可能站得很远（站着不动时怪在路上就被远程打死），
+     * 没有磁吸就永远捡不到 → 经验条不涨。半径要覆盖整张地图。
+     */
+    magnetRadius: number;
+    /** 掉落物磁吸移动速度（像素/秒） */
+    magnetSpeed: number;
 }
 
 export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
@@ -673,4 +695,13 @@ export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
         roach: '蟑',
         big_eater: '胃',
     },
+    initialWeapons: ['skewer'],
+    projectileSize: 14,
+    projectileMaxTravel: 1400,
+    projectilePoolSize: 24,
+    dropSize: 18,
+    bigDropSize: 30,
+    dropPoolSize: 80,
+    magnetRadius: 1200,
+    magnetSpeed: 300,
 };
