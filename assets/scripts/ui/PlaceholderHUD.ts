@@ -8,6 +8,7 @@
 import { _decorator, Component, Graphics, Color, Label, Node, UITransform, HorizontalTextAlignment, VerticalTextAlignment, Camera, Canvas, view } from 'cc';
 import { GLOBAL, WAVES } from '../Config';
 import { SceneSetup } from '../core/SceneSetup';
+import { DEFAULT_LAYER, UI_2D_LAYER } from '../core/Layers';
 
 const { ccclass } = _decorator;
 
@@ -28,10 +29,7 @@ const COLOR_TEXT = new Color(236, 236, 236, 255);
  */
 const GROUND_GRID_CELLS = 10;
 
-/** UI_2D 层（引擎层常量，UI 组件所在层） */
-const UI_2D_LAYER = 1 << 25;
-/** DEFAULT 层（普通渲染层，世界内容放在这里由主相机渲染） */
-const DEFAULT_LAYER = 1 << 30;
+/** UI_2D 层 / DEFAULT 层的常量定义在 core/Layers.ts（Step 3 起统一引用，避免多处各写一份） */
 
 @ccclass('PlaceholderHUD')
 export class PlaceholderHUD extends Component {

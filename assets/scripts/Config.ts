@@ -634,3 +634,43 @@ export const SAVE: SaveConfig = {
     keyPrefix: 'maozhanggui_save_v1',
     fields: ['bestWave', 'totalCoins', 'unlockedDishes', 'recipeBookProgress'],
 };
+
+// ==================== 原型期专用参数 ====================
+
+/**
+ * 原型期专用参数（**尚未进入 config JSON**）。
+ *
+ * 为什么单独开一块：config/game-config.json 是策划表，只放玩法数值；
+ * 刷怪边距、灰盒色块尺寸这类「几何/交互」参数还没有对应的策划字段，
+ * 但纪律仍然是「数值只从 Config 读」，所以集中放在这里而不是散在脚本里。
+ * 后续策划补了字段，就把对应项迁到 JSON 并从这里删除。
+ */
+export interface PrototypeOnlyConfig {
+    /** 刷怪点距离地图边缘外的距离（像素） */
+    spawnMargin: number;
+    /** 敌人灰盒色块边长（像素） */
+    enemySize: number;
+    /**
+     * 索敌模式：
+     *   player  = 一律追玩家
+     *   stall   = 一律冲摊位
+     *   nearest = 默认追玩家，摊位明显更近时改冲摊位
+     */
+    aggroMode: 'player' | 'stall' | 'nearest';
+    /** nearest 模式下：摊位距离 < 玩家距离 × 该比例时改冲摊位 */
+    stallAggroRatio: number;
+    /** 敌人灰盒上的辨识字（灰盒表现用：老鼠→「鼠」、蟑螂→「蟑」、大胃王→「胃」） */
+    enemyGlyphs: { [enemyId: string]: string };
+}
+
+export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
+    spawnMargin: 80,
+    enemySize: 36,
+    aggroMode: 'player',
+    stallAggroRatio: 0.8,
+    enemyGlyphs: {
+        rat: '鼠',
+        roach: '蟑',
+        big_eater: '胃',
+    },
+};
