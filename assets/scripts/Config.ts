@@ -673,6 +673,8 @@ export interface PrototypeOnlyConfig {
     dropSize: number;
     /** 食材掉落物色块尺寸（大食材 / 精英掉落） */
     bigDropSize: number;
+    /** 环绕类武器的命中判定间隔（秒）：避免每帧重复命中同一敌人 */
+    orbitHitIntervalSec: number;
     /** 掉落物对象池预热数量 */
     dropPoolSize: number;
     /**
@@ -683,6 +685,12 @@ export interface PrototypeOnlyConfig {
     magnetRadius: number;
     /** 掉落物磁吸移动速度（像素/秒） */
     magnetSpeed: number;
+    /** 三选一面板几何（像素） */
+    upgradePanelWidth: number;
+    upgradePanelHeight: number;
+    upgradeOptionWidth: number;
+    upgradeOptionHeight: number;
+    upgradeOptionSpacing: number;
 }
 
 export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
@@ -701,7 +709,13 @@ export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
     projectilePoolSize: 24,
     dropSize: 18,
     bigDropSize: 30,
+    orbitHitIntervalSec: 0.5,
     dropPoolSize: 80,
     magnetRadius: 1200,
     magnetSpeed: 300,
+    upgradePanelWidth: 720,
+    upgradePanelHeight: 260,
+    upgradeOptionWidth: 210,
+    upgradeOptionHeight: 170,
+    upgradeOptionSpacing: 24,
 };

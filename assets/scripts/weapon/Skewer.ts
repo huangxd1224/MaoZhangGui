@@ -15,7 +15,9 @@ import { _decorator, Component, Node, Graphics, Color, UITransform } from 'cc';
 import { DISHES, DishConfig, PROTOTYPE_ONLY } from '../Config';
 import { PoolUtil } from '../core/PoolUtil';
 import { DEFAULT_LAYER } from '../core/Layers';
+import { UpgradeState } from '../core/UpgradeState';
 import { EnemySpawner } from '../enemy/EnemySpawner';
+import { DishWeapon } from './DishWeapon';
 import { Projectile } from './Projectile';
 
 const { ccclass } = _decorator;
@@ -24,7 +26,7 @@ const { ccclass } = _decorator;
 const COLOR_SKEWER = new Color(214, 186, 132, 255);
 
 @ccclass('Skewer')
-export class Skewer extends Component {
+export class Skewer extends Component implements DishWeapon {
     /** 对应 Config 里的菜品 id */
     public static readonly DISH_ID = 'skewer';
 
@@ -40,6 +42,10 @@ export class Skewer extends Component {
     private timer = 0;
     /** 累计开火次数（自检用） */
     private shotsFired = 0;
+    /** 累计命中次数（自检用） */
+    private hitCount = 0;
+    /** 累计造成伤害（自检用） */
+    private dealt = 0;
 
     /**
      * 装配武器。
@@ -62,10 +68,31 @@ export class Skewer extends Component {
         return this.level;
     }
 
+    /** 对应菜品 id */
+    public get dishId(): string {
+        return Skewer.DISH_ID;
+    }
+
+    /** 累计命中次数（自检用） */
+    public get hits(): number {
+        return this.hitCount;
+    }
+
+    /** 累计造成伤害（自检用） */
+    public get damageDealt(): number {
+        return this.dealt;
+    }
+
     /** 累计开火次数（自检用） */
     public get firedCount(): number {
         return this.shotsFired;
     }
+
+    /** 命中统计回调（箭头函数绑定 this，避免 this 丢失） */
+    private readonly handleHit = (damage: number): void => {
+        this.hitCount++;
+        this.dealt += damage;
+    };
 
     /** 每帧推进：冷却到点就朝最近敌人开火 */
     public tick(dt: number): void {
@@ -111,18 +138,19 @@ export class Skewer extends Component {
             dish.projectileSpeed ?? 0,
             this.spawner,
             this.pool,
+            this.handleHit,
         );
         this.shotsFired++;
     }
 
-    /** 当前等级的伤害 = 基础伤害 × 每级倍率^(等级-1) */
+    /** 当前等级的伤害 = 基础伤害 × 每级倍率^(等级-1) × 被动加成 */
     public damageOf(dish: DishConfig): number {
-        return dish.damage * Math.pow(dish.damageGrowthPerLevel, this.level - 1);
+        return dish.damage * Math.pow(dish.damageGrowthPerLevel, this.level - 1) * UpgradeState.damageMul;
     }
 
-    /** 当前等级的冷却 = 基础冷却 × 每级倍率^(等级-1) */
+    /** 当前等级的冷却 = 基础冷却 × 每级倍率^(等级-1) × 被动加成 */
     public cooldownOf(dish: DishConfig): number {
-        return dish.cooldownSec * Math.pow(dish.cooldownGrowthPerLevel, this.level - 1);
+        return dish.cooldownSec * Math.pow(dish.cooldownGrowthPerLevel, this.level - 1) * UpgradeState.cooldownMul;
     }
 
     /** 读 Config 里的烤串配置 */

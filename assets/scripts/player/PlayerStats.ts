@@ -19,6 +19,17 @@ export class PlayerStats extends Component {
     public level = 0;
     /** 累计金币 */
     public coins = 0;
+    /**
+     * 累计获得经验（只增不减）。
+     *
+     * 口径说明（Step 4 自检时问过）：
+     *   - exp      = 当前条结余，已扣除升级消耗；
+     *   - totalExp = 从头到尾拿到的经验总和（= 累计拾取的经验）；
+     *   - 两者关系：totalExp = exp + Σ(已升级消耗)。
+     */
+    public totalExp = 0;
+    /** 待处理的升级次数（三选一面板每选完一次减 1） */
+    public pendingUpgrades = 0;
 
     /** 升到下一级所需经验 */
     public get expNeeded(): number {
@@ -36,11 +47,20 @@ export class PlayerStats extends Component {
         if (amount <= 0) {
             return;
         }
+        this.totalExp += amount;
         this.exp += amount;
         // 可能一次拾取跨过多级
         while (this.exp >= this.expNeeded) {
             this.exp -= this.expNeeded;
             this.level++;
+            this.pendingUpgrades++;
+        }
+    }
+
+    /** 消耗一次待处理升级（三选一面板选完一个后调用） */
+    public consumeUpgrade(): void {
+        if (this.pendingUpgrades > 0) {
+            this.pendingUpgrades--;
         }
     }
 

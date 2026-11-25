@@ -41,6 +41,8 @@ export class Projectile extends Component {
     private pool: PoolUtil<Node> | null = null;
     /** 本次飞行已命中的敌人（避免同一敌人被重复扣血） */
     private readonly hitEnemies: Set<Node> = new Set<Node>();
+    /** 命中回调（由武器注入，用于统计命中次数与伤害） */
+    private onHit: ((damage: number) => void) | null = null;
 
     /**
      * 发射。
@@ -64,6 +66,7 @@ export class Projectile extends Component {
         speed: number,
         spawner: EnemySpawner,
         pool: PoolUtil<Node>,
+        onHit?: ((damage: number) => void) | null,
     ): void {
         const dx = toX - fromX;
         const dy = toY - fromY;
@@ -76,6 +79,7 @@ export class Projectile extends Component {
         this.traveled = 0;
         this.spawner = spawner;
         this.pool = pool;
+        this.onHit = onHit ?? null;
         this.hitEnemies.clear();
 
         // 命中半径 = 投射物半径 + 敌人半径（敌人边长的一半）
@@ -128,6 +132,9 @@ export class Projectile extends Component {
             // 命中：扣血（死亡由 Enemy 内部处理 → 刷怪器 → 掉落）
             this.hitEnemies.add(node);
             enemy.applyDamage(this.damage);
+            if (this.onHit) {
+                this.onHit(this.damage);
+            }
             this.pierceLeft--;
             if (this.pierceLeft <= 0) {
                 this.recycle();
@@ -148,6 +155,7 @@ export class Projectile extends Component {
         const pool = this.pool;
         this.pool = null;
         this.spawner = null;
+        this.onHit = null;
         this.hitEnemies.clear();
         if (pool) {
             pool.release(this.node);

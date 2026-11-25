@@ -10,6 +10,8 @@
 import { _decorator, Component, Node } from 'cc';
 import { GLOBAL, PROTOTYPE_ONLY } from '../Config';
 import { PoolUtil } from '../core/PoolUtil';
+import { UpgradeState } from '../core/UpgradeState';
+import { GameManager } from '../core/GameManager';
 import { Enemy } from '../enemy/Enemy';
 import { PlayerStats } from '../player/PlayerStats';
 import { FoodDrop } from './FoodDrop';
@@ -74,9 +76,14 @@ export class DropManager extends Component {
         if (!this.player || !this.stats || this.activeDrops.length === 0) {
             return;
         }
-        const pickupRadius = GLOBAL.playerPickupRadius;
+        // 升级面板弹出时游戏暂停
+        if (GameManager.paused) {
+            return;
+        }
+        const pickupRadius = GLOBAL.playerPickupRadius * UpgradeState.pickupMul;
         const pickupSq = pickupRadius * pickupRadius;
-        const magnetSq = PROTOTYPE_ONLY.magnetRadius * PROTOTYPE_ONLY.magnetRadius;
+        const magnetRadius = PROTOTYPE_ONLY.magnetRadius;
+        const magnetSq = magnetRadius * magnetRadius;
         const playerPos = this.player.position;
         for (let i = this.activeDrops.length - 1; i >= 0; i--) {
             const drop = this.activeDrops[i];
@@ -86,9 +93,11 @@ export class DropManager extends Component {
             const distSq = dx * dx + dy * dy;
 
             if (distSq <= pickupSq) {
-                // 拾取：加经验 + 加金币
-                this.stats.addExp(drop.exp);
-                this.stats.addCoins(drop.coins);
+                // 拾取：加经验（被动加成）+ 加金币
+                const exp = Math.round(drop.exp * UpgradeState.expMul);
+                const coins = Math.round(drop.coins * UpgradeState.coinsMul);
+                this.stats.addExp(exp);
+                this.stats.addCoins(coins);
                 drop.recycle();
                 this.activeDrops.splice(i, 1);
                 continue;

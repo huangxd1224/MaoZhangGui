@@ -12,6 +12,8 @@
 import { _decorator, Component, Node, Graphics, Color, Label, Widget, UITransform, HorizontalTextAlignment, VerticalTextAlignment } from 'cc';
 import { PlayerStats } from '../player/PlayerStats';
 import { UI_2D_LAYER } from '../core/Layers';
+import { GameManager } from '../core/GameManager';
+import { GLOBAL } from '../Config';
 
 const { ccclass } = _decorator;
 
@@ -32,11 +34,16 @@ export class HudStatus extends Component {
     private expLabel: Label | null = null;
     /** 金币文字 */
     private coinLabel: Label | null = null;
+    /** 波次文字 */
+    private waveLabel: Label | null = null;
+    /** 波次总控 */
+    private manager: GameManager | null = null;
 
     /** 上一次的数值（用于判断是否需要重画） */
     private lastExp = -1;
     private lastLevel = -1;
     private lastCoins = -1;
+    private lastWave = -1;
 
     /**
      * 装配。
@@ -58,6 +65,17 @@ export class HudStatus extends Component {
             }
         }
         this.createExpLabel();
+        const waveNode = this.node.scene?.getChildByPath('Canvas/UI/WaveText');
+        if (waveNode) {
+            this.waveLabel = waveNode.getComponent(Label);
+            if (this.waveLabel) {
+                this.waveLabel.useSystemFont = true;
+                this.waveLabel.fontFamily = 'Arial';
+                this.waveLabel.color = COLOR_TEXT;
+                this.waveLabel.horizontalAlign = HorizontalTextAlignment.LEFT;
+                this.waveLabel.verticalAlign = VerticalTextAlignment.CENTER;
+            }
+        }
         this.refresh(true);
     }
 
@@ -66,6 +84,25 @@ export class HudStatus extends Component {
             return;
         }
         this.refresh(false);
+        this.refreshWave();
+    }
+
+    /**
+     * 刷新波次文字（Step 5：波次由 GameManager 推进）。
+     * GameManager 可能比 HUD 晚一步创建（SceneSetup 的装配顺序），所以这里按需再取一次。
+     */
+    private refreshWave(): void {
+        if (!this.manager) {
+            const node = this.node.scene?.getChildByPath('Canvas/GameManager');
+            this.manager = node ? (node.getComponent('GameManager') as GameManager | null) : null;
+            if (!this.manager) {
+                return;
+            }
+        }
+        if (this.waveLabel && this.lastWave !== this.manager.waveNumber) {
+            this.lastWave = this.manager.waveNumber;
+            this.waveLabel.string = `第 ${this.lastWave} / ${GLOBAL.runWaves} 波`;
+        }
     }
 
     /** 刷新经验条与金币文字 */

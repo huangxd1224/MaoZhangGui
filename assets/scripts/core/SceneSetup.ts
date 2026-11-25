@@ -21,6 +21,9 @@ import { CameraFollow } from '../camera/CameraFollow';
 import { EnemySpawner } from '../enemy/EnemySpawner';
 import { WeaponManager } from '../weapon/WeaponManager';
 import { DropManager } from '../drop/DropManager';
+import { UpgradePanel } from '../upgrade/UpgradePanel';
+import { GameManager } from './GameManager';
+import { UpgradeState } from './UpgradeState';
 import { DEFAULT_LAYER, UI_2D_LAYER } from './Layers';
 
 export class SceneSetup {
@@ -45,8 +48,9 @@ export class SceneSetup {
         }
 
         const spawner = SceneSetup.setupEnemySpawner(canvas, playerNode);
-        SceneSetup.setupWeapons(canvas, playerNode, spawner);
-        SceneSetup.setupDrops(canvas, playerNode, spawner);
+        const weapons = SceneSetup.setupWeapons(canvas, playerNode, spawner);
+        const stats = SceneSetup.setupDrops(canvas, playerNode, spawner);
+        SceneSetup.setupUpgrade(canvas, playerNode, spawner, weapons, stats);
     }
 
     /**
@@ -75,13 +79,13 @@ export class SceneSetup {
     /**
      * Step 4：建武器容器并挂上 WeaponManager（烤串从玩家位置发射）。
      */
-    private static setupWeapons(canvas: Node, playerNode: Node | null, spawner: EnemySpawner | null): void {
+    private static setupWeapons(canvas: Node, playerNode: Node | null, spawner: EnemySpawner | null): WeaponManager | null {
         if (!playerNode || !spawner) {
-            return;
+            return null;
         }
         const actorsNode = canvas.getChildByPath('Actors');
         if (!actorsNode) {
-            return;
+            return null;
         }
         let weaponsRoot = actorsNode.getChildByName('Weapons');
         if (!weaponsRoot) {
@@ -92,6 +96,7 @@ export class SceneSetup {
         }
         const manager = weaponsRoot.getComponent(WeaponManager) ?? weaponsRoot.addComponent(WeaponManager);
         manager.setup(playerNode, spawner);
+        return manager;
     }
 
     /**
@@ -100,10 +105,10 @@ export class SceneSetup {
      *  - 玩家节点挂 PlayerStats（经验 / 金币）；
      *  - 敌人死亡 → 刷怪器的 deathListeners → 掉食材。
      */
-    private static setupDrops(canvas: Node, playerNode: Node | null, spawner: EnemySpawner | null): void {
+    private static setupDrops(canvas: Node, playerNode: Node | null, spawner: EnemySpawner | null): PlayerStats | null {
         const dropsNode = canvas.getChildByPath('Drops');
         if (!dropsNode || !playerNode) {
-            return;
+            return null;
         }
         const stats = playerNode.getComponent(PlayerStats) ?? playerNode.addComponent(PlayerStats);
         const dropManager = dropsNode.getComponent(DropManager) ?? dropsNode.addComponent(DropManager);
@@ -126,5 +131,50 @@ export class SceneSetup {
             const hud = hudNode.getComponent(HudStatus) ?? hudNode.addComponent(HudStatus);
             hud.setup(stats);
         }
+        return stats;
+    }
+
+    /**
+     * Step 5：升级三选一面板 + 波次总控。
+     *  - UpgradePanel 挂在 Canvas/UI 下（新建节点要显式设 UI_2D 层）；
+     *  - 面板弹出时通过 onPauseChange → GameManager.setPaused(true) 暂停游戏；
+     *  - 选中的被动登记到 UpgradeState（各系统统一读它）；
+     *  - GameManager 从第 1 波开始，按 waves 表推进。
+     */
+    private static setupUpgrade(
+        canvas: Node,
+        playerNode: Node | null,
+        spawner: EnemySpawner | null,
+        weapons: WeaponManager | null,
+        stats: PlayerStats | null,
+    ): void {
+        if (!playerNode || !spawner || !weapons || !stats) {
+            return;
+        }
+        const uiNode = canvas.getChildByPath('UI');
+        if (!uiNode) {
+            return;
+        }
+        let panelNode = uiNode.getChildByName('UpgradePanel');
+        if (!panelNode) {
+            panelNode = new Node('UpgradePanel');
+            panelNode.layer = UI_2D_LAYER;
+            uiNode.addChild(panelNode);
+            panelNode.addComponent(UITransform);
+        }
+        const panel = panelNode.getComponent(UpgradePanel) ?? panelNode.addComponent(UpgradePanel);
+        panel.setup(weapons, (paused) => GameManager.setPaused(paused));
+        panel.onPassiveChosen = (passive) => UpgradeState.addPassive(passive);
+        panel.onChosen = () => stats.consumeUpgrade();
+
+        // GameManager：波次推进 + 升级触发
+        let managerNode = canvas.getChildByName('GameManager');
+        if (!managerNode) {
+            managerNode = new Node('GameManager');
+            canvas.addChild(managerNode);
+            managerNode.addComponent(UITransform);
+        }
+        const manager = managerNode.getComponent(GameManager) ?? managerNode.addComponent(GameManager);
+        manager.setup(spawner, stats, panel);
     }
 }

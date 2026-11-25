@@ -18,6 +18,7 @@ import { _decorator, Component, Node, Vec3, UITransform, Graphics, Label, Color,
 import { GLOBAL, PROTOTYPE_ENEMIES, PROTOTYPE_ONLY, PROTOTYPE_WAVES, WaveConfig } from '../Config';
 import { PoolUtil } from '../core/PoolUtil';
 import { DEFAULT_LAYER } from '../core/Layers';
+import { GameManager } from '../core/GameManager';
 import { Enemy } from './Enemy';
 
 const { ccclass } = _decorator;
@@ -49,7 +50,7 @@ export class EnemySpawner extends Component {
     /** 距下一次刷怪的累计时间 */
     private spawnTimer = 0;
     /** 当前波次配置（Step 3 固定用第 1 波） */
-    private readonly wave: WaveConfig = PROTOTYPE_WAVES[0];
+    private wave: WaveConfig = PROTOTYPE_WAVES[0];
     /** 原型允许的敌人 id（过滤刷怪池用） */
     private readonly prototypeIds: Set<string> = new Set<string>(PROTOTYPE_ENEMIES.map((e) => e.id));
 
@@ -86,6 +87,10 @@ export class EnemySpawner extends Component {
 
     protected update(dt: number): void {
         if (!this.pool) {
+            return;
+        }
+        // 升级面板弹出时游戏暂停（Step 5）
+        if (GameManager.paused) {
             return;
         }
         this.spawnTimer += dt;
@@ -127,6 +132,19 @@ export class EnemySpawner extends Component {
     /** 当前波次序号 */
     public get waveNumber(): number {
         return this.wave.wave;
+    }
+
+    /**
+     * 切换到新的波次参数（Step 5 的 GameManager 在波次推进时调用）。
+     * 立即生效：血量倍率、刷怪间隔、敌人 mix 全部换成新波次的。
+     */
+    public setWave(wave: WaveConfig): void {
+        this.wave = wave;
+    }
+
+    /** 当前波次配置（自检用） */
+    public get currentWave(): WaveConfig {
+        return this.wave;
     }
 
     /** 最近一次生成的出生点坐标（自检用） */

@@ -13,6 +13,8 @@
  */
 import { _decorator, Component, Node, Vec2, Vec3, input, Input, EventKeyboard, KeyCode, Graphics, Color, UITransform } from 'cc';
 import { GLOBAL } from '../Config';
+import { GameManager } from '../core/GameManager';
+import { UpgradeState } from '../core/UpgradeState';
 
 const { ccclass } = _decorator;
 
@@ -53,6 +55,10 @@ export class Player extends Component {
     }
 
     protected update(dt: number): void {
+        // 升级面板弹出时游戏暂停（Step 5）
+        if (GameManager.paused) {
+            return;
+        }
         this.moveDir.set(0, 0);
 
         // 摇杆输入
@@ -85,8 +91,8 @@ export class Player extends Component {
             this.moveDir.y /= len;
         }
 
-        // 按 Config 速度移动
-        const step = GLOBAL.playerSpeed * dt;
+        // 按 Config 速度移动（乘「移速」被动的加成）
+        const step = GLOBAL.playerSpeed * UpgradeState.speedMul * dt;
         const pos = this.node.position;
         let x = pos.x + this.moveDir.x * step;
         let y = pos.y + this.moveDir.y * step;

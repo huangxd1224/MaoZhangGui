@@ -57,6 +57,12 @@ export class Enemy extends Component {
     private label: Label | null = null;
     /** 自身碰撞半径（灰盒边长的一半） */
     private selfRadius = 0;
+    /** 灼烧每秒伤害（0 = 未灼烧） */
+    private burnDps = 0;
+    /** 灼烧剩余时间 */
+    private burnTimer = 0;
+    /** 冰冻剩余时间（>0 时不移动） */
+    private freezeTimer = 0;
 
     /**
      * 从池中取出时初始化。
@@ -91,6 +97,10 @@ export class Enemy extends Component {
 
         this.cacheComponents();
         this.draw(config);
+        // 复用节点时必须清空状态效果（灼烧/冰冻），否则会带到下一只怪身上
+        this.burnDps = 0;
+        this.burnTimer = 0;
+        this.freezeTimer = 0;
         this.alive = true;
     }
 
@@ -108,6 +118,23 @@ export class Enemy extends Component {
         if (!this.alive) {
             return;
         }
+
+        // 灼烧：按每秒伤害持续扣血（辣椒粉的光环效果）
+        if (this.burnTimer > 0) {
+            this.burnTimer -= dt;
+            this.hp -= this.burnDps * dt;
+            if (this.hp <= 0) {
+                this.die();
+                return;
+            }
+        }
+
+        // 冰冻：期间不移动（冰啤酒的范围冰冻）
+        if (this.freezeTimer > 0) {
+            this.freezeTimer -= dt;
+            return;
+        }
+
         const target = this.pickTarget();
         if (!target) {
             return;
@@ -140,6 +167,61 @@ export class Enemy extends Component {
         if (this.hp <= 0) {
             this.die();
         }
+    }
+
+    /**
+     * 施加灼烧（辣椒粉）。
+     * @param dps 每秒伤害
+     * @param duration 持续时间（秒）
+     */
+    public applyBurn(dps: number, duration: number): void {
+        if (!this.alive || dps <= 0 || duration <= 0) {
+            return;
+        }
+        // 取更强的那一个，不叠加数值（避免多次命中导致指数级叠伤）
+        this.burnDps = Math.max(this.burnDps, dps);
+        this.burnTimer = Math.max(this.burnTimer, duration);
+    }
+
+    /**
+     * 施加冰冻（冰啤酒）：期间不移动。
+     * @param duration 冰冻时间（秒）
+     */
+    public applyFreeze(duration: number): void {
+        if (!this.alive || duration <= 0) {
+            return;
+        }
+        this.freezeTimer = Math.max(this.freezeTimer, duration);
+    }
+
+    /**
+     * 击退（大蒜瓣）：沿远离来源的方向位移。
+     * @param distance 击退距离（像素）
+     * @param fromX 来源 x
+     * @param fromY 来源 y
+     */
+    public applyKnockback(distance: number, fromX: number, fromY: number): void {
+        if (!this.alive || distance <= 0) {
+            return;
+        }
+        const pos = this.node.position;
+        const dx = pos.x - fromX;
+        const dy = pos.y - fromY;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len <= 0) {
+            return;
+        }
+        this.node.setPosition(pos.x + (dx / len) * distance, pos.y + (dy / len) * distance, pos.z);
+    }
+
+    /** 当前是否处于冰冻状态（自检用） */
+    public get frozen(): boolean {
+        return this.freezeTimer > 0;
+    }
+
+    /** 当前灼烧每秒伤害（自检用） */
+    public get burningDps(): number {
+        return this.burnDps;
     }
 
     /** 死亡：归还对象池 + 回调刷怪器（节点不销毁） */
