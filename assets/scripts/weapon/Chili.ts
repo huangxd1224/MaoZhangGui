@@ -160,4 +160,17 @@ export class Chili extends Component implements DishWeapon {
         graphics.circle(0, 0, radius);
         graphics.stroke();
     }
+
+    /**
+     * 退出武器栏时清理：辣椒粉的光环挂在玩家节点下，
+     * 不销毁的话进化后玩家身上会残留一个红圈。
+     */
+    public dispose(): void {
+        if (this.ringNode) {
+            this.ringNode.destroy();
+            this.ringNode = null;
+        }
+        this.owner = null;
+        this.spawner = null;
+    }
 }

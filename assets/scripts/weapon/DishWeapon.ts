@@ -17,4 +17,10 @@ export interface DishWeapon {
     readonly hits: number;
     /** 累计造成伤害（自检用） */
     readonly damageDealt: number;
+    /**
+     * 退出武器栏时的清理（Step 6）。
+     * 范围类武器会在玩家身上挂子节点（辣椒粉的光环、大蒜瓣的瓣、冰啤酒的冰冻环），
+     * 不清理的话退栏后残留视觉 —— 进化后辣椒粉没了但红圈还在。
+     */
+    dispose?(): void;
 }

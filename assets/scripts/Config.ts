@@ -691,6 +691,23 @@ export interface PrototypeOnlyConfig {
     upgradeOptionWidth: number;
     upgradeOptionHeight: number;
     upgradeOptionSpacing: number;
+    /** 武器栏格数（Step 6：进化后两道基础菜退出，正好腾出位置） */
+    weaponSlots: number;
+    /** 被动栏格数（已持有的被动种类上限） */
+    passiveSlots: number;
+    /**
+     * 进化签子的穿透数（全屏穿透）。
+     * 用一个大数表示「打穿整屏」，而不是无限（无限在计数上不可靠）。
+     */
+    evolutionPierce: number;
+    /** 进化签子的最远飞行距离（像素，需覆盖全屏对角线） */
+    evolutionMaxTravel: number;
+    /** 武器栏/被动栏格子边长（像素） */
+    slotSize: number;
+    /** 格子之间的间距（像素） */
+    slotSpacing: number;
+    /** 栏位与屏幕边缘的间距（像素） */
+    slotBarMargin: number;
 }
 
 export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
@@ -718,4 +735,11 @@ export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
     upgradeOptionWidth: 210,
     upgradeOptionHeight: 170,
     upgradeOptionSpacing: 24,
+    weaponSlots: 4,
+    passiveSlots: 4,
+    evolutionPierce: 999,
+    evolutionMaxTravel: 3200,
+    slotSize: 52,
+    slotSpacing: 8,
+    slotBarMargin: 20,
 };

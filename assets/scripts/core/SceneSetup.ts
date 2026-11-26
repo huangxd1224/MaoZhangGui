@@ -17,6 +17,7 @@ import { Player } from '../player/Player';
 import { PlayerStats } from '../player/PlayerStats';
 import { Joystick } from '../ui/Joystick';
 import { HudStatus } from '../ui/HudStatus';
+import { LoadoutPanel } from '../ui/LoadoutPanel';
 import { CameraFollow } from '../camera/CameraFollow';
 import { EnemySpawner } from '../enemy/EnemySpawner';
 import { WeaponManager } from '../weapon/WeaponManager';
@@ -166,6 +167,17 @@ export class SceneSetup {
         panel.setup(weapons, (paused) => GameManager.setPaused(paused));
         panel.onPassiveChosen = (passive) => UpgradeState.addPassive(passive);
         panel.onChosen = () => stats.consumeUpgrade();
+
+        // Step 6：武器栏 / 被动栏（各 4 格）
+        let loadoutNode = uiNode.getChildByName('LoadoutPanel');
+        if (!loadoutNode) {
+            loadoutNode = new Node('LoadoutPanel');
+            loadoutNode.layer = UI_2D_LAYER;
+            uiNode.addChild(loadoutNode);
+            loadoutNode.addComponent(UITransform);
+        }
+        const loadout = loadoutNode.getComponent(LoadoutPanel) ?? loadoutNode.addComponent(LoadoutPanel);
+        loadout.setup(weapons);
 
         // GameManager：波次推进 + 升级触发
         let managerNode = canvas.getChildByName('GameManager');

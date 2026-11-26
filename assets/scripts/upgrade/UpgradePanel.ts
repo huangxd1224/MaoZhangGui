@@ -11,7 +11,7 @@
  *   - UI 全部运行时创建（工程里没有按钮预制体），新建节点必须显式设 UI_2D 层。
  */
 import { _decorator, Component, Node, Graphics, Color, Label, UITransform, HorizontalTextAlignment, VerticalTextAlignment } from 'cc';
-import { DISHES, DishConfig, PassiveConfig, PASSIVES, LEVEL_UP_CHOICE_WEIGHTS, PROTOTYPE_ONLY } from '../Config';
+import { DISHES, DishConfig, PassiveConfig, PASSIVES, LEVEL_UP_CHOICE_WEIGHTS, PROTOTYPE_ONLY, RecipeConfig } from '../Config';
 import { UI_2D_LAYER } from '../core/Layers';
 import { UpgradeState } from '../core/UpgradeState';
 
@@ -29,26 +29,33 @@ export interface DishUpgradeTarget {
     addDish(dishId: string, level?: number): boolean;
     /** 已有菜升一级 */
     levelUp(dishId: string): boolean;
+    /** 当前是否有可进化的配方（Step 6：两道基础菜都满级） */
+    canEvolve(): RecipeConfig | null;
+    /** 执行进化（Step 6：两道基础菜退出武器栏，换成进化菜） */
+    evolve(recipeId: string): boolean;
 }
 
 /** 面板的一个选项 */
 export interface UpgradeOption {
     /** 选项类别 */
-    kind: 'newDish' | 'upgrade' | 'passive';
+    kind: 'newDish' | 'upgrade' | 'passive' | 'evolution';
     /** 标题（面板显示） */
     title: string;
     /** 描述（面板显示） */
     desc: string;
-    /** 新菜 / 升级对应的菜品 id */
+    /** 新菜 / 升级 / 进化对应的菜品 id */
     dishId?: string;
     /** 被动配置 */
     passive?: PassiveConfig;
+    /** 进化配方（kind = evolution） */
+    recipe?: RecipeConfig;
 }
 
 /** 选项类别配色（视觉常量） */
 const COLOR_OPTION_NEW = new Color(214, 138, 62, 255);
 const COLOR_OPTION_UPGRADE = new Color(72, 132, 214, 255);
 const COLOR_OPTION_PASSIVE = new Color(96, 186, 120, 255);
+const COLOR_OPTION_EVOLUTION = new Color(198, 108, 226, 255);
 const COLOR_PANEL_BG = new Color(30, 34, 44, 245);
 const COLOR_MASK = new Color(0, 0, 0, 170);
 const COLOR_TITLE = new Color(246, 214, 120, 255);
@@ -163,6 +170,9 @@ export class UpgradePanel extends Component {
         } else if (option.kind === 'passive' && option.passive) {
             // 被动加成由 UpgradeState 汇总（此处只登记）
             this.onPassiveChosen(option.passive);
+        } else if (option.kind === 'evolution' && option.recipe) {
+            // Step 6：进化（两道基础菜满级 → 换成进化菜）
+            this.target.evolve(option.recipe.id);
         }
     }
 
@@ -175,20 +185,39 @@ export class UpgradePanel extends Component {
     // ==================== 抽签 ====================
 
     /**
-     * 抽三个选项：先按 40/40/20 抽类别，再在类别内抽具体目标。
-     * 同一目标不重复；类别内没目标时回退到其他类别。
+     * 抽三个选项。
+     *
+     * Step 6 规则：**进化选项必出**，不参与 40/40/20 的随机权重 ——
+     * 只要配方条件满足（两道基础菜满级），第一个格子固定是进化，
+     * 剩下两格才按权重抽。
      */
     private rollOptions(): UpgradeOption[] {
         const kinds: Array<'newDish' | 'upgrade' | 'passive'> = ['newDish', 'upgrade', 'passive'];
         const result: UpgradeOption[] = [];
-        const usedTitles = new Set<string>();
+        // 去重按「类别 + 目标」而不是标题 —— 标题里带等级（"升级：烤串 Lv.1"），
+        // 同一道菜的两次升级标题不同，按标题去重会漏掉，面板会出现两个同样的选项。
+        const usedKeys = new Set<string>();
 
-        for (let i = 0; i < 3; i++) {
+        // 进化选项：必出，不占随机权重
+        const recipe = this.target ? this.target.canEvolve() : null;
+        if (recipe) {
+            const option: UpgradeOption = {
+                kind: 'evolution',
+                dishId: recipe.id,
+                recipe,
+                title: `进化：${recipe.name}`,
+                desc: `${recipe.desc}，伤害×${recipe.damageMul}`,
+            };
+            result.push(option);
+            usedKeys.add(`evolution:${recipe.id}`);
+        }
+
+        for (let i = result.length; i < 3; i++) {
             let picked: UpgradeOption | null = null;
             // 最多尝试 12 次：每次按权重抽类别，抽到空类别就换
             for (let attempt = 0; attempt < 12 && !picked; attempt++) {
                 const kind = this.rollKind(kinds);
-                const option = this.pickOptionOfKind(kind, usedTitles);
+                const option = this.pickOptionOfKind(kind, usedKeys);
                 if (option) {
                     picked = option;
                 }
@@ -196,10 +225,18 @@ export class UpgradePanel extends Component {
             if (!picked) {
                 break;
             }
-            usedTitles.add(picked.title);
+            usedKeys.add(this.keyOf(picked));
             result.push(picked);
         }
         return result;
+    }
+
+    /** 选项的去重键 */
+    private keyOf(option: UpgradeOption): string {
+        if (option.kind === 'passive' && option.passive) {
+            return `passive:${option.passive.id}`;
+        }
+        return `${option.kind}:${option.dishId ?? ''}`;
     }
 
     /** 按权重抽一个类别（权重读 Config.LEVEL_UP_CHOICE_WEIGHTS：40 / 40 / 20） */
@@ -217,9 +254,9 @@ export class UpgradePanel extends Component {
     }
 
     /** 在某类别里抽一个具体选项（没有可用目标返回 null） */
-    private pickOptionOfKind(kind: 'newDish' | 'upgrade' | 'passive', usedTitles: Set<string>): UpgradeOption | null {
+    private pickOptionOfKind(kind: 'newDish' | 'upgrade' | 'passive', usedKeys: Set<string>): UpgradeOption | null {
         if (kind === 'newDish') {
-            const candidates = this.newDishCandidates().filter((d) => !usedTitles.has(d.name));
+            const candidates = this.newDishCandidates().filter((d) => !usedKeys.has(`newDish:${d.id}`));
             if (candidates.length === 0) {
                 return null;
             }
@@ -227,14 +264,14 @@ export class UpgradePanel extends Component {
             return { kind: 'newDish', dishId: dish.id, title: `新菜：${dish.name}`, desc: this.describeDish(dish) };
         }
         if (kind === 'upgrade') {
-            const candidates = this.upgradeCandidates().filter((d) => !usedTitles.has(d.name));
+            const candidates = this.upgradeCandidates().filter((d) => !usedKeys.has(`upgrade:${d.id}`));
             if (candidates.length === 0) {
                 return null;
             }
             const dish = candidates[Math.floor(Math.random() * candidates.length)];
             return { kind: 'upgrade', dishId: dish.id, title: `升级：${dish.name} Lv.${this.levelOf(dish)}`, desc: '提升该菜伤害与效果' };
         }
-        const candidates = this.passiveCandidates().filter((p) => !usedTitles.has(p.name));
+        const candidates = this.passiveCandidates().filter((p) => !usedKeys.has(`passive:${p.id}`));
         if (candidates.length === 0) {
             return null;
         }
@@ -242,12 +279,15 @@ export class UpgradePanel extends Component {
         return { kind: 'passive', passive, title: `被动：${passive.name}`, desc: this.describePassive(passive) };
     }
 
-    /** 可选的新菜：原型菜里还没拥有的 */
+    /** 可选的新菜：原型菜里还没拥有的（武器栏满 4 格则不再出新菜） */
     private newDishCandidates(): DishConfig[] {
         if (!this.target) {
             return [];
         }
         const owned = new Set(this.target.ownedDishIds());
+        if (owned.size >= PROTOTYPE_ONLY.weaponSlots) {
+            return [];
+        }
         return DISHES.filter((d) => d.inPrototype && !owned.has(d.id));
     }
 
@@ -260,8 +300,11 @@ export class UpgradePanel extends Component {
         return DISHES.filter((d) => d.inPrototype && owned.has(d.id) && this.levelOf(d) < d.maxLevel);
     }
 
-    /** 可选的被动（策划表 PASSIVES 里还没叠满的） */
+    /** 可选的被动（策划表 PASSIVES 里还没叠满的；被动栏 4 格占满则不再出新被动） */
     private passiveCandidates(): PassiveConfig[] {
+        if (UpgradeState.passiveStacks.length >= PROTOTYPE_ONLY.passiveSlots) {
+            return [];
+        }
         return PASSIVES.filter((p) => UpgradeState.stackOf(p.id) < p.maxStacks);
     }
 
@@ -430,6 +473,9 @@ export class UpgradePanel extends Component {
         }
         if (kind === 'upgrade') {
             return COLOR_OPTION_UPGRADE;
+        }
+        if (kind === 'evolution') {
+            return COLOR_OPTION_EVOLUTION;
         }
         return COLOR_OPTION_PASSIVE;
     }

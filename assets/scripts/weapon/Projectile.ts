@@ -12,6 +12,7 @@
 import { _decorator, Component, Node } from 'cc';
 import { PoolUtil } from '../core/PoolUtil';
 import { EnemySpawner } from '../enemy/EnemySpawner';
+import { Enemy } from '../enemy/Enemy';
 import { PROTOTYPE_ONLY } from '../Config';
 
 const { ccclass } = _decorator;
@@ -32,6 +33,8 @@ export class Projectile extends Component {
     private pierceLeft = 0;
     /** 已飞行距离 */
     private traveled = 0;
+    /** 本次飞行的最远距离（进化签子要打穿全屏，所以可配） */
+    private maxTravel = 0;
     /** 命中判定半径（投射物半径 + 敌人半径） */
     private hitRadiusSq = 0;
 
@@ -41,8 +44,8 @@ export class Projectile extends Component {
     private pool: PoolUtil<Node> | null = null;
     /** 本次飞行已命中的敌人（避免同一敌人被重复扣血） */
     private readonly hitEnemies: Set<Node> = new Set<Node>();
-    /** 命中回调（由武器注入，用于统计命中次数与伤害） */
-    private onHit: ((damage: number) => void) | null = null;
+    /** 命中回调（由武器注入，用于统计命中次数与伤害；进化签子还要附加灼烧） */
+    private onHit: ((damage: number, enemy: Enemy) => void) | null = null;
 
     /**
      * 发射。
@@ -55,6 +58,8 @@ export class Projectile extends Component {
      * @param speed 飞行速度
      * @param spawner 敌人来源
      * @param pool 所属对象池
+     * @param onHit 命中回调（带敌人引用）
+     * @param maxTravel 最远飞行距离（默认读 PROTOTYPE_ONLY.projectileMaxTravel）
      */
     public launch(
         fromX: number,
@@ -66,7 +71,8 @@ export class Projectile extends Component {
         speed: number,
         spawner: EnemySpawner,
         pool: PoolUtil<Node>,
-        onHit?: ((damage: number) => void) | null,
+        onHit?: ((damage: number, enemy: Enemy) => void) | null,
+        maxTravel?: number,
     ): void {
         const dx = toX - fromX;
         const dy = toY - fromY;
@@ -77,6 +83,7 @@ export class Projectile extends Component {
         this.pierceLeft = Math.max(1, pierce);
         this.speed = speed;
         this.traveled = 0;
+        this.maxTravel = maxTravel ?? PROTOTYPE_ONLY.projectileMaxTravel;
         this.spawner = spawner;
         this.pool = pool;
         this.onHit = onHit ?? null;
@@ -107,7 +114,7 @@ export class Projectile extends Component {
         }
 
         // 超出射程 → 回收
-        if (this.traveled >= PROTOTYPE_ONLY.projectileMaxTravel) {
+        if (this.traveled >= this.maxTravel) {
             this.recycle();
         }
     }
@@ -133,7 +140,7 @@ export class Projectile extends Component {
             this.hitEnemies.add(node);
             enemy.applyDamage(this.damage);
             if (this.onHit) {
-                this.onHit(this.damage);
+                this.onHit(this.damage, enemy);
             }
             this.pierceLeft--;
             if (this.pierceLeft <= 0) {

@@ -1,15 +1,16 @@
 /**
- * 菜品管理 + 自动攻击调度 —— Step 4 / Step 5
+ * 菜品管理 + 自动攻击调度 —— Step 4 / Step 5 / Step 6
  *
  * 职责：
  *   - 持有玩家「已拥有的菜品」，每帧推进各自的冷却，到点开火；
  *   - 支持四种原型菜品（config DISHES 里的 inPrototype 项）：
  *       烤串 projectile / 辣椒粉 aura_dot / 大蒜瓣 orbit / 冰啤酒 freeze_aoe；
  *   - 提供升级接口（newDish / levelUp），供 Step 5 的三选一面板调用；
+ *   - Step 6：菜谱进化（两道菜满级 → evolve），进化后两道基础菜退出武器栏；
  *   - 数值（伤害/冷却/穿透/弹速）一律读 Config，被动加成从 UpgradeState 读。
  */
 import { _decorator, Component, Node } from 'cc';
-import { DISHES, DishConfig, PROTOTYPE_ONLY } from '../Config';
+import { DISHES, DishConfig, PROTOTYPE_ONLY, PROTOTYPE_RECIPES, RecipeConfig } from '../Config';
 import { EnemySpawner } from '../enemy/EnemySpawner';
 import { GameManager } from '../core/GameManager';
 import { DishUpgradeTarget } from '../upgrade/UpgradePanel';
@@ -18,6 +19,7 @@ import { Skewer } from './Skewer';
 import { Chili } from './Chili';
 import { Garlic } from './Garlic';
 import { IcedBeer } from './IcedBeer';
+import { Malatang } from './Malatang';
 
 const { ccclass } = _decorator;
 
@@ -92,6 +94,10 @@ export class WeaponManager extends Component implements DishUpgradeTarget {
         if (this.hasDish(dishId)) {
             return this.levelUp(dishId);
         }
+        // 武器栏满（Step 6：武器栏 4 格）→ 不再接收新菜
+        if (this.weapons.length >= PROTOTYPE_ONLY.weaponSlots) {
+            return false;
+        }
         const weapon = this.createWeapon(dish);
         if (!weapon) {
             return false;
@@ -100,6 +106,94 @@ export class WeaponManager extends Component implements DishUpgradeTarget {
         this.weapons.push(weapon);
         this.byDishId.set(dishId, weapon);
         this.levels.set(dishId, level);
+        return true;
+    }
+
+    /**
+     * 移除一道菜（Step 6：进化后两道基础菜退出武器栏）。
+     * @param dishId 菜品 id
+     */
+    public removeDish(dishId: string): boolean {
+        const weapon = this.byDishId.get(dishId);
+        if (!weapon) {
+            return false;
+        }
+        const index = this.weapons.indexOf(weapon);
+        if (index >= 0) {
+            this.weapons.splice(index, 1);
+        }
+        this.byDishId.delete(dishId);
+        this.levels.delete(dishId);
+        // 清理挂在玩家身上的表现节点（辣椒粉光环 / 大蒜瓣 / 冰冻环）
+        if (weapon.dispose) {
+            weapon.dispose();
+        }
+        const node = this.node.getChildByName(dishId);
+        if (node) {
+            node.destroy();
+        }
+        return true;
+    }
+
+    /**
+     * 当前是否有可进化的配方（两道基础菜都已满级）。
+     * Step 6：条件满足时，三选一里**必出**进化选项（不占随机权重）。
+     */
+    public canEvolve(): RecipeConfig | null {
+        for (const recipe of PROTOTYPE_RECIPES) {
+            const ready = recipe.from.every((id) => {
+                const dish = DISHES.find((d) => d.id === id);
+                return !!dish && this.hasDish(id) && this.dishLevel(id) >= dish.maxLevel;
+            });
+            if (ready) {
+                return recipe;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 菜谱进化（Step 6）。
+     * 条件：配方里的两道菜都已拥有且满级；
+     * 结果：两道基础菜退出武器栏，换成进化后的新菜。
+     * @param recipeId 配方 id（Config.RECIPES）
+     */
+    public evolve(recipeId: string): boolean {
+        if (!this.owner || !this.spawner) {
+            return false;
+        }
+        const recipe = PROTOTYPE_RECIPES.find((r) => r.id === recipeId);
+        if (!recipe) {
+            return false;
+        }
+        // 条件校验：from 的两道菜都满级
+        for (const id of recipe.from) {
+            const dish = DISHES.find((d) => d.id === id);
+            if (!dish || !this.hasDish(id) || this.dishLevel(id) < dish.maxLevel) {
+                return false;
+            }
+        }
+        // 两道基础菜退出武器栏
+        for (const id of recipe.from) {
+            this.removeDish(id);
+        }
+        // 换上进化菜
+        return this.addEvolutionDish(recipe);
+    }
+
+    /** 创建进化菜组件（进化菜不在 DISHES 里，单独走这条路径） */
+    private addEvolutionDish(recipe: RecipeConfig): boolean {
+        if (!this.owner || !this.spawner) {
+            return false;
+        }
+        const node = new Node(recipe.id);
+        this.node.addChild(node);
+        const weapon = node.addComponent(Malatang);
+        weapon.setup(this.owner, this.spawner, recipe);
+        weapon.setLevel(1);
+        this.weapons.push(weapon);
+        this.byDishId.set(recipe.id, weapon);
+        this.levels.set(recipe.id, 1);
         return true;
     }
 
@@ -186,6 +280,34 @@ export class WeaponManager extends Component implements DishUpgradeTarget {
             }
         }
         return sum;
+    }
+
+    /**
+     * 进化菜统计（Step 6 自检用）：确认「全屏穿透 + 命中灼烧」真的在跑。
+     */
+    public get evolutionStats(): {
+        dishId: string;
+        level: number;
+        hits: number;
+        burnHits: number;
+        shots: number;
+        pierce: number;
+        travel: number;
+    } | null {
+        for (const weapon of this.weapons) {
+            if (weapon instanceof Malatang) {
+                return {
+                    dishId: weapon.dishId,
+                    level: weapon.weaponLevel,
+                    hits: weapon.hits,
+                    burnHits: weapon.burnHits,
+                    shots: weapon.firedCount,
+                    pierce: PROTOTYPE_ONLY.evolutionPierce,
+                    travel: PROTOTYPE_ONLY.evolutionMaxTravel,
+                };
+            }
+        }
+        return null;
     }
 
     /**

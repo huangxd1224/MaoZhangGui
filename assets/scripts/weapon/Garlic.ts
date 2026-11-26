@@ -173,4 +173,16 @@ export class Garlic extends Component implements DishWeapon {
             this.petals.push(node);
         }
     }
+
+    /**
+     * 退出武器栏时清理：蒜瓣挂在玩家节点下，不销毁会残留。
+     */
+    public dispose(): void {
+        for (const petal of this.petals) {
+            petal.destroy();
+        }
+        this.petals.length = 0;
+        this.owner = null;
+        this.spawner = null;
+    }
 }

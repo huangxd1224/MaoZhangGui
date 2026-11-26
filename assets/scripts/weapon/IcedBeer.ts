@@ -27,6 +27,8 @@ export class IcedBeer extends Component implements DishWeapon {
     private owner: Node | null = null;
     /** 敌人来源 */
     private spawner: EnemySpawner | null = null;
+    /** 冰冻环节点（挂在玩家下，复用同一个） */
+    private ringNode: Node | null = null;
     /** 等级 */
     private level = 1;
     /** 冷却计时 */
@@ -130,14 +132,37 @@ export class IcedBeer extends Component implements DishWeapon {
         }
         const dish = this.dishConfig();
         const radius = dish?.radius ?? 0;
-        const node = new Node('IcedBeerRing');
-        const transform = node.addComponent(UITransform);
-        transform.setContentSize(radius * 2, radius * 2);
-        const graphics = node.addComponent(Graphics);
+        // 复用同一个节点：之前每次调用都 new + addChild，等于每帧往玩家身上挂一个新环。
+        if (!this.ringNode) {
+            this.ringNode = new Node('IcedBeerRing');
+            this.ringNode.addComponent(UITransform);
+            this.ringNode.addComponent(Graphics);
+            this.owner.addChild(this.ringNode);
+        }
+        const transform = this.ringNode.getComponent(UITransform);
+        if (transform) {
+            transform.setContentSize(radius * 2, radius * 2);
+        }
+        const graphics = this.ringNode.getComponent(Graphics);
+        if (!graphics) {
+            return;
+        }
+        graphics.clear();
         graphics.strokeColor = COLOR_RING;
         graphics.lineWidth = 6;
         graphics.circle(0, 0, radius);
         graphics.stroke();
-        this.owner.addChild(node);
+    }
+
+    /**
+     * 退出武器栏时清理：冰冻环挂在玩家节点下，不销毁会残留。
+     */
+    public dispose(): void {
+        if (this.ringNode) {
+            this.ringNode.destroy();
+            this.ringNode = null;
+        }
+        this.owner = null;
+        this.spawner = null;
     }
 }
