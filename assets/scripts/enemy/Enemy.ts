@@ -16,6 +16,7 @@
 import { _decorator, Component, Node, Graphics, Color, Label, UITransform, HorizontalTextAlignment, VerticalTextAlignment } from 'cc';
 import { EnemyConfig, PROTOTYPE_ONLY } from '../Config';
 import { PoolUtil } from '../core/PoolUtil';
+import { StallProvider } from '../stall/StallTypes';
 
 const { ccclass } = _decorator;
 
@@ -63,6 +64,14 @@ export class Enemy extends Component {
     private burnTimer = 0;
     /** 冰冻剩余时间（>0 时不移动） */
     private freezeTimer = 0;
+    /** 减速剩余时间 */
+    private slowTimer = 0;
+    /** 减速比例（0.35 = 移速乘 0.65） */
+    private slowFactor = 1;
+    /** 啃摊子的间隔计时 */
+    private attackTimer = 0;
+    /** 摊位提供方（外部注入：基地与防御摊） */
+    private stallProvider: StallProvider | null = null;
 
     /**
      * 从池中取出时初始化。
@@ -74,6 +83,7 @@ export class Enemy extends Component {
      * @param stall 摊位节点
      * @param aggroMode 索敌模式
      * @param stallAggroRatio nearest 模式的摊位优先比例
+     * @param stallProvider 摊位提供方（Step 7：啃基地/防御摊）
      */
     public activate(
         config: EnemyConfig,
@@ -84,6 +94,7 @@ export class Enemy extends Component {
         stall: Node | null,
         aggroMode: AggroMode,
         stallAggroRatio: number,
+        stallProvider?: StallProvider | null,
     ): void {
         this.enemyConfig = config;
         this.maxHp = Math.max(1, Math.round(config.hp * hpMul));
@@ -94,13 +105,17 @@ export class Enemy extends Component {
         this.stallNode = stall;
         this.aggroMode = aggroMode;
         this.stallAggroRatio = stallAggroRatio;
+        this.stallProvider = stallProvider ?? null;
 
         this.cacheComponents();
         this.draw(config);
-        // 复用节点时必须清空状态效果（灼烧/冰冻），否则会带到下一只怪身上
+        // 复用节点时必须清空状态效果（灼烧/冰冻/减速），否则会带到下一只怪身上
         this.burnDps = 0;
         this.burnTimer = 0;
         this.freezeTimer = 0;
+        this.slowTimer = 0;
+        this.slowFactor = 1;
+        this.attackTimer = 0;
         this.alive = true;
     }
 
@@ -135,11 +150,34 @@ export class Enemy extends Component {
             return;
         }
 
+        // 减速计时（奶茶摊光环；离开光环即失效）
+        if (this.slowTimer > 0) {
+            this.slowTimer -= dt;
+            if (this.slowTimer <= 0) {
+                // 减速到期 → 恢复原速（否则残留的旧比例会一直生效）
+                this.slowFactor = 1;
+            }
+        }
+
+        const pos = this.node.position;
+
+        // Step 7：接触到摊位（基地或防御摊）→ 停下啃它
+        if (this.stallProvider) {
+            const stallTarget = this.stallProvider.findStallTarget(pos.x, pos.y);
+            if (stallTarget) {
+                this.attackTimer -= dt;
+                if (this.attackTimer <= 0) {
+                    this.attackTimer = PROTOTYPE_ONLY.stallAttackIntervalSec;
+                    this.stallProvider.attackStall(stallTarget, this.enemyConfig?.elite === true);
+                }
+                return;
+            }
+        }
+
         const target = this.pickTarget();
         if (!target) {
             return;
         }
-        const pos = this.node.position;
         const dx = target.position.x - pos.x;
         const dy = target.position.y - pos.y;
         const distSq = dx * dx + dy * dy;
@@ -151,7 +189,9 @@ export class Enemy extends Component {
         }
 
         const dist = Math.sqrt(distSq);
-        const step = (this.enemyConfig?.speed ?? 0) * dt;
+        // 减速：移速乘 slowFactor（0.35 → 移速 65%）
+        const slowMul = this.slowTimer > 0 ? this.slowFactor : 1;
+        const step = (this.enemyConfig?.speed ?? 0) * slowMul * dt;
         if (step <= 0 || dist <= 0) {
             return;
         }
@@ -222,6 +262,30 @@ export class Enemy extends Component {
     /** 当前灼烧每秒伤害（自检用） */
     public get burningDps(): number {
         return this.burnDps;
+    }
+
+    /**
+     * 施加减速（奶茶摊光环）。
+     * @param factor 减速比例（0.35 = 移速乘 0.65）
+     * @param duration 持续时间（秒）
+     */
+    public applySlow(factor: number, duration: number): void {
+        if (!this.alive || factor <= 0 || factor >= 1 || duration <= 0) {
+            return;
+        }
+        // 取更慢的那个（不叠加），时间取更长的
+        this.slowFactor = Math.min(this.slowFactor === 1 ? factor : this.slowFactor, factor);
+        this.slowTimer = Math.max(this.slowTimer, duration);
+    }
+
+    /** 当前是否处于减速状态（自检用） */
+    public get slowed(): boolean {
+        return this.slowTimer > 0;
+    }
+
+    /** 当前减速比例（自检用） */
+    public get slowMultiplier(): number {
+        return this.slowTimer > 0 ? this.slowFactor : 1;
     }
 
     /** 死亡：归还对象池 + 回调刷怪器（节点不销毁） */

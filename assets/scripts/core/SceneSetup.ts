@@ -18,11 +18,14 @@ import { PlayerStats } from '../player/PlayerStats';
 import { Joystick } from '../ui/Joystick';
 import { HudStatus } from '../ui/HudStatus';
 import { LoadoutPanel } from '../ui/LoadoutPanel';
+import { StallPanel } from '../ui/StallPanel';
+import { GameResultPanel } from '../ui/GameResultPanel';
 import { CameraFollow } from '../camera/CameraFollow';
 import { EnemySpawner } from '../enemy/EnemySpawner';
 import { WeaponManager } from '../weapon/WeaponManager';
 import { DropManager } from '../drop/DropManager';
 import { UpgradePanel } from '../upgrade/UpgradePanel';
+import { StallManager } from '../stall/StallManager';
 import { GameManager } from './GameManager';
 import { UpgradeState } from './UpgradeState';
 import { DEFAULT_LAYER, UI_2D_LAYER } from './Layers';
@@ -52,6 +55,7 @@ export class SceneSetup {
         const weapons = SceneSetup.setupWeapons(canvas, playerNode, spawner);
         const stats = SceneSetup.setupDrops(canvas, playerNode, spawner);
         SceneSetup.setupUpgrade(canvas, playerNode, spawner, weapons, stats);
+        SceneSetup.setupStalls(canvas, spawner, stats);
     }
 
     /**
@@ -188,5 +192,83 @@ export class SceneSetup {
         }
         const manager = managerNode.getComponent(GameManager) ?? managerNode.addComponent(GameManager);
         manager.setup(spawner, stats, panel);
+    }
+
+    /**
+     * Step 7：摊位（基地血量 + 奶茶摊）+ 摆摊面板 + 结算面板。
+     *  - StallManager 管基地血量与防御摊，敌人通过它啃摊位；
+     *  - StallPanel 是间歇期弹出的摆摊 UI；
+     *  - GameResultPanel 是结算 UI（含「再来一局」）；
+     *  - 击杀计数与「击杀精英 → 判胜」挂在刷怪器的死亡监听上。
+     */
+    private static setupStalls(
+        canvas: Node,
+        spawner: EnemySpawner | null,
+        stats: PlayerStats | null,
+    ): void {
+        if (!spawner || !stats) {
+            return;
+        }
+        const managerNode = canvas.getChildByName('GameManager');
+        const manager = managerNode ? (managerNode.getComponent(GameManager) ?? null) : null;
+
+        // 摊位管理（Canvas/StallManager）
+        let stallNode = canvas.getChildByName('StallManager');
+        if (!stallNode) {
+            stallNode = new Node('StallManager');
+            canvas.addChild(stallNode);
+            stallNode.addComponent(UITransform);
+        }
+        const stallManager = stallNode.getComponent(StallManager) ?? stallNode.addComponent(StallManager);
+        const baseStall = canvas.getChildByPath('World/Stall');
+        stallManager.setup(baseStall, stats, spawner, () => {
+            if (manager) {
+                manager.defeat('基地摊位被啃光了');
+            }
+        });
+        // 敌人能啃基地与防御摊
+        spawner.setStallProvider(stallManager);
+
+        const uiNode = canvas.getChildByPath('UI');
+        if (!uiNode) {
+            return;
+        }
+
+        // 摆摊面板
+        let stallPanelNode = uiNode.getChildByName('StallPanel');
+        if (!stallPanelNode) {
+            stallPanelNode = new Node('StallPanel');
+            stallPanelNode.layer = UI_2D_LAYER;
+            uiNode.addChild(stallPanelNode);
+            stallPanelNode.addComponent(UITransform);
+        }
+        const stallPanel = stallPanelNode.getComponent(StallPanel) ?? stallPanelNode.addComponent(StallPanel);
+        stallPanel.setup(stallManager, stats);
+
+        // 结算面板
+        let resultNode = uiNode.getChildByName('GameResultPanel');
+        if (!resultNode) {
+            resultNode = new Node('GameResultPanel');
+            resultNode.layer = UI_2D_LAYER;
+            uiNode.addChild(resultNode);
+            resultNode.addComponent(UITransform);
+        }
+        const resultPanel = resultNode.getComponent(GameResultPanel) ?? resultNode.addComponent(GameResultPanel);
+        resultPanel.setup();
+
+        if (manager) {
+            manager.setStallPanel(stallPanel);
+            manager.setResultPanel(resultPanel);
+        }
+
+        // 击杀计数 + 击杀精英判胜
+        spawner.deathListeners.push((enemy) => {
+            if (manager) {
+                manager.onEnemyKilled();
+                if (enemy.enemyConfig && enemy.enemyConfig.elite) {
+                    manager.victory('击杀精英大胃王');
+                }
+            }
+        });
     }
 }

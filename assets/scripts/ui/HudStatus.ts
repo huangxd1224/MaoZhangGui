@@ -13,7 +13,9 @@ import { _decorator, Component, Node, Graphics, Color, Label, Widget, UITransfor
 import { PlayerStats } from '../player/PlayerStats';
 import { UI_2D_LAYER } from '../core/Layers';
 import { GameManager } from '../core/GameManager';
-import { GLOBAL } from '../Config';
+import { GLOBAL, PROTOTYPE_ONLY } from '../Config';
+import { StallManager } from '../stall/StallManager';
+import { EnemySpawner } from '../enemy/EnemySpawner';
 
 const { ccclass } = _decorator;
 
@@ -23,6 +25,10 @@ const COLOR_BAR_BACK = new Color(20, 20, 24, 255);
 const COLOR_EXP = new Color(86, 196, 118, 255);
 /** 文字颜色 */
 const COLOR_TEXT = new Color(236, 236, 236, 255);
+/** 基地血条填充色 */
+const COLOR_BASE = new Color(96, 186, 120, 255);
+/** 精英血条填充色 */
+const COLOR_ELITE = new Color(214, 84, 84, 255);
 
 @ccclass('HudStatus')
 export class HudStatus extends Component {
@@ -38,6 +44,23 @@ export class HudStatus extends Component {
     private waveLabel: Label | null = null;
     /** 波次总控 */
     private manager: GameManager | null = null;
+    /** 摊位管理（Step 7：基地血量） */
+    private stallManager: StallManager | null = null;
+    /** 刷怪器（Step 7：精英血量） */
+    private spawner: EnemySpawner | null = null;
+    /** 基地血条填充 */
+    private baseBarFill: Graphics | null = null;
+    /** 基地血量文字 */
+    private baseLabel: Label | null = null;
+    /** 精英血条节点 */
+    private eliteBarNode: Node | null = null;
+    /** 精英血条填充 */
+    private eliteBarFill: Graphics | null = null;
+    /** 精英血量文字 */
+    private eliteLabel: Label | null = null;
+    /** 上次绘制的血量（避免每帧重绘） */
+    private lastBaseHp = -1;
+    private lastEliteHp = -1;
 
     /** 上一次的数值（用于判断是否需要重画） */
     private lastExp = -1;
@@ -76,6 +99,7 @@ export class HudStatus extends Component {
                 this.waveLabel.verticalAlign = VerticalTextAlignment.CENTER;
             }
         }
+        this.buildStatusBars();
         this.refresh(true);
     }
 
@@ -85,6 +109,164 @@ export class HudStatus extends Component {
         }
         this.refresh(false);
         this.refreshWave();
+        this.refreshStatusBars();
+    }
+
+    /**
+     * Step 7：基地血条（屏幕下方中间）+ 精英血条（屏幕上方中间，精英在场才显示）。
+     */
+    private buildStatusBars(): void {
+        const canvasSize = this.node.scene?.getChildByPath('Canvas')?.getComponent(UITransform)?.contentSize;
+        const h = canvasSize ? canvasSize.height : 720;
+
+        // 基地血条
+        const baseNode = new Node('BaseStallBar');
+        baseNode.layer = UI_2D_LAYER;
+        baseNode.setPosition(0, -h / 2 + 56, 0);
+        const baseTransform = baseNode.addComponent(UITransform);
+        baseTransform.setContentSize(PROTOTYPE_ONLY.baseHpBarWidth, PROTOTYPE_ONLY.baseHpBarHeight);
+        const baseBack = baseNode.addComponent(Graphics);
+        baseBack.fillColor = COLOR_BAR_BACK;
+        baseBack.rect(-PROTOTYPE_ONLY.baseHpBarWidth / 2, -PROTOTYPE_ONLY.baseHpBarHeight / 2,
+            PROTOTYPE_ONLY.baseHpBarWidth, PROTOTYPE_ONLY.baseHpBarHeight);
+        baseBack.fill();
+        const baseFillNode = new Node('Fill');
+        const baseFillTransform = baseFillNode.addComponent(UITransform);
+        baseFillTransform.setContentSize(PROTOTYPE_ONLY.baseHpBarWidth, PROTOTYPE_ONLY.baseHpBarHeight);
+        this.baseBarFill = baseFillNode.addComponent(Graphics);
+        baseNode.addChild(baseFillNode);
+        this.node.addChild(baseNode);
+
+        const baseLabelNode = new Node('BaseStallLabel');
+        baseLabelNode.layer = UI_2D_LAYER;
+        baseLabelNode.setPosition(0, -h / 2 + 56 + PROTOTYPE_ONLY.baseHpBarHeight / 2 + 12, 0);
+        const baseLabelTransform = baseLabelNode.addComponent(UITransform);
+        baseLabelTransform.setContentSize(220, 20);
+        const baseLabel = baseLabelNode.addComponent(Label);
+        baseLabel.useSystemFont = true;
+        baseLabel.fontFamily = 'Arial';
+        baseLabel.fontSize = 14;
+        baseLabel.color = COLOR_TEXT;
+        baseLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+        baseLabel.verticalAlign = VerticalTextAlignment.CENTER;
+        baseLabel.cacheMode = Label.CacheMode.CHAR;
+        this.node.addChild(baseLabelNode);
+        this.baseLabel = baseLabel;
+
+        // 精英血条（默认隐藏，精英在场才显示）
+        const eliteNode = new Node('EliteBar');
+        eliteNode.layer = UI_2D_LAYER;
+        eliteNode.setPosition(0, h / 2 - 190, 0);
+        const eliteTransform = eliteNode.addComponent(UITransform);
+        eliteTransform.setContentSize(PROTOTYPE_ONLY.eliteHpBarWidth, PROTOTYPE_ONLY.eliteHpBarHeight);
+        const eliteBack = eliteNode.addComponent(Graphics);
+        eliteBack.fillColor = COLOR_BAR_BACK;
+        eliteBack.rect(-PROTOTYPE_ONLY.eliteHpBarWidth / 2, -PROTOTYPE_ONLY.eliteHpBarHeight / 2,
+            PROTOTYPE_ONLY.eliteHpBarWidth, PROTOTYPE_ONLY.eliteHpBarHeight);
+        eliteBack.fill();
+        const eliteFillNode = new Node('Fill');
+        const eliteFillTransform = eliteFillNode.addComponent(UITransform);
+        eliteFillTransform.setContentSize(PROTOTYPE_ONLY.eliteHpBarWidth, PROTOTYPE_ONLY.eliteHpBarHeight);
+        this.eliteBarFill = eliteFillNode.addComponent(Graphics);
+        eliteNode.addChild(eliteFillNode);
+        this.node.addChild(eliteNode);
+        this.eliteBarNode = eliteNode;
+
+        const eliteLabelNode = new Node('EliteLabel');
+        eliteLabelNode.layer = UI_2D_LAYER;
+        eliteLabelNode.setPosition(0, h / 2 - 190 + PROTOTYPE_ONLY.eliteHpBarHeight / 2 + 14, 0);
+        const eliteLabelTransform = eliteLabelNode.addComponent(UITransform);
+        eliteLabelTransform.setContentSize(260, 22);
+        const eliteLabel = eliteLabelNode.addComponent(Label);
+        eliteLabel.useSystemFont = true;
+        eliteLabel.fontFamily = 'Arial';
+        eliteLabel.fontSize = 16;
+        eliteLabel.color = COLOR_ELITE;
+        eliteLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+        eliteLabel.verticalAlign = VerticalTextAlignment.CENTER;
+        eliteLabel.cacheMode = Label.CacheMode.CHAR;
+        this.node.addChild(eliteLabelNode);
+        this.eliteLabel = eliteLabel;
+
+        eliteNode.active = false;
+        eliteLabelNode.active = false;
+    }
+
+    /**
+     * 刷新基地血条与精英血条。
+     * StallManager / EnemySpawner 可能晚于 HUD 装配 → 延迟取一次。
+     */
+    private refreshStatusBars(): void {
+        if (!this.stallManager) {
+            const node = this.node.scene?.getChildByPath('Canvas/StallManager');
+            this.stallManager = node ? (node.getComponent('StallManager') as StallManager | null) : null;
+            if (!this.stallManager) {
+                return;
+            }
+        }
+        if (!this.spawner) {
+            const node = this.node.scene?.getChildByPath('Canvas/Actors/Enemies');
+            this.spawner = node ? (node.getComponent('EnemySpawner') as EnemySpawner | null) : null;
+            if (!this.spawner) {
+                return;
+            }
+        }
+        // 基地血量
+        const hp = this.stallManager.baseStallHp;
+        const maxHp = this.stallManager.baseStallMaxHp;
+        if (hp !== this.lastBaseHp) {
+            this.lastBaseHp = hp;
+            const g = this.baseBarFill;
+            if (g) {
+                const w = PROTOTYPE_ONLY.baseHpBarWidth;
+                const h = PROTOTYPE_ONLY.baseHpBarHeight;
+                const ratio = maxHp > 0 ? Math.max(0, hp / maxHp) : 0;
+                g.clear();
+                g.fillColor = COLOR_BASE;
+                g.rect(-w / 2, -h / 2, w * ratio, h);
+                g.fill();
+            }
+            if (this.baseLabel) {
+                this.baseLabel.string = `基地摊位 ${hp}/${maxHp}`;
+            }
+        }
+        // 精英血量（单独显示）
+        const elites = this.spawner.aliveElites;
+        if (elites.length === 0) {
+            if (this.eliteBarNode && this.eliteBarNode.active) {
+                this.eliteBarNode.active = false;
+                if (this.eliteLabel && this.eliteLabel.node.active) {
+                    this.eliteLabel.node.active = false;
+                }
+                this.lastEliteHp = -1;
+            }
+            return;
+        }
+        const elite = elites[0];
+        if (this.eliteBarNode && !this.eliteBarNode.active) {
+            this.eliteBarNode.active = true;
+            if (this.eliteLabel) {
+                this.eliteLabel.node.active = true;
+            }
+            this.lastEliteHp = -1;
+        }
+        if (elite.hp !== this.lastEliteHp) {
+            this.lastEliteHp = elite.hp;
+            const g = this.eliteBarFill;
+            if (g) {
+                const w = PROTOTYPE_ONLY.eliteHpBarWidth;
+                const h = PROTOTYPE_ONLY.eliteHpBarHeight;
+                const ratio = elite.maxHp > 0 ? Math.max(0, elite.hp / elite.maxHp) : 0;
+                g.clear();
+                g.fillColor = COLOR_ELITE;
+                g.rect(-w / 2, -h / 2, w * ratio, h);
+                g.fill();
+            }
+            if (this.eliteLabel) {
+                const name = elite.enemyConfig ? elite.enemyConfig.name : '精英';
+                this.eliteLabel.string = `${name} ${Math.ceil(elite.hp)}/${elite.maxHp}`;
+            }
+        }
     }
 
     /**

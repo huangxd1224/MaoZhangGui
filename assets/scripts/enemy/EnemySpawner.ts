@@ -20,6 +20,7 @@ import { PoolUtil } from '../core/PoolUtil';
 import { DEFAULT_LAYER } from '../core/Layers';
 import { GameManager } from '../core/GameManager';
 import { Enemy } from './Enemy';
+import { StallProvider } from '../stall/StallTypes';
 
 const { ccclass } = _decorator;
 
@@ -46,6 +47,14 @@ export class EnemySpawner extends Component {
     public readonly deathListeners: ((enemy: Enemy) => void)[] = [];
     /** 排队等待补入的敌人类型 id（达到上限时积累） */
     private readonly pendingIds: string[] = [];
+    /** 摊位提供方（Step 7：敌人啃基地/防御摊） */
+    private stallProvider: StallProvider | null = null;
+    /** 是否允许刷怪（间歇摆摊时为 false） */
+    private spawningEnabled = true;
+    /** 当前波次已过时间（精英出场判定用） */
+    private waveElapsed = 0;
+    /** 本波精英是否已刷出 */
+    private eliteSpawned = false;
 
     /** 距下一次刷怪的累计时间 */
     private spawnTimer = 0;
@@ -93,6 +102,13 @@ export class EnemySpawner extends Component {
         if (GameManager.paused) {
             return;
         }
+        this.waveElapsed += dt;
+        // Step 7：精英在本波 eliteAtSec 秒时出场（第 10 波大胃王）
+        this.trySpawnElite();
+        if (!this.spawningEnabled) {
+            // 间歇摆摊：停刷怪
+            return;
+        }
         this.spawnTimer += dt;
         const interval = this.wave.spawnIntervalSec;
         // 用 while 而不是 if：掉帧时补刷，不让刷新节奏随帧率漂移
@@ -100,6 +116,24 @@ export class EnemySpawner extends Component {
             this.spawnTimer -= interval;
             this.requestSpawn();
         }
+    }
+
+    /**
+     * 刷精英：本波的 elite 角色在 eliteAtSec 秒时出现。
+     *
+     * 血量：**不乘**波次倍率（PROTOTYPE_ONLY.eliteUsesWaveHpMul = false）——
+     * 大胃王基础血量 1500，第 10 波 hpMul 4.15 乘上去会变成 6225，那是错的。
+     */
+    private trySpawnElite(): void {
+        if (this.eliteSpawned || !this.wave.elite || this.wave.eliteAtSec === undefined) {
+            return;
+        }
+        if (this.waveElapsed < this.wave.eliteAtSec) {
+            return;
+        }
+        this.eliteSpawned = true;
+        const hpMul = PROTOTYPE_ONLY.eliteUsesWaveHpMul ? this.wave.hpMul : 1;
+        this.spawnEnemy(this.wave.elite, hpMul);
     }
 
     // ==================== 对外可查状态（自检 / 后续步骤用） ====================
@@ -140,6 +174,43 @@ export class EnemySpawner extends Component {
      */
     public setWave(wave: WaveConfig): void {
         this.wave = wave;
+        this.waveElapsed = 0;
+        this.eliteSpawned = false;
+    }
+
+    /**
+     * 注入摊位提供方（Step 7：敌人要能啃基地与防御摊）。
+     */
+    public setStallProvider(provider: StallProvider | null): void {
+        this.stallProvider = provider;
+    }
+
+    /**
+     * 是否允许刷怪（Step 7：间歇摆摊期间停刷）。
+     */
+    public setSpawningEnabled(enabled: boolean): void {
+        this.spawningEnabled = enabled;
+    }
+
+    /** 当前是否在刷怪 */
+    public get isSpawningEnabled(): boolean {
+        return this.spawningEnabled;
+    }
+
+    /** 当前波次已过时间（自检用：精英出场判定） */
+    public get waveElapsedTime(): number {
+        return this.waveElapsed;
+    }
+
+    /** 在场的精英（自检用：大胃王血量） */
+    public get aliveElites(): Enemy[] {
+        const result: Enemy[] = [];
+        for (const enemy of this.activeEnemies) {
+            if (enemy.enemyConfig && enemy.enemyConfig.elite) {
+                result.push(enemy);
+            }
+        }
+        return result;
     }
 
     /** 当前波次配置（自检用） */
@@ -276,7 +347,7 @@ export class EnemySpawner extends Component {
     }
 
     /** 生成一只敌人 */
-    private spawnEnemy(id: string): boolean {
+    private spawnEnemy(id: string, hpMul?: number): boolean {
         if (!this.pool) {
             return false;
         }
@@ -290,15 +361,32 @@ export class EnemySpawner extends Component {
         this.lastSpawnX = pos.x;
         this.lastSpawnY = pos.y;
         node.setPosition(pos.x, pos.y, pos.z);
+        // 精英色块放大（视觉）；非精英必须还原成普通尺寸（节点是复用的）
+        const sizeMul = config.elite ? PROTOTYPE_ONLY.eliteSizeMul : 1;
+        const size = PROTOTYPE_ONLY.enemySize * sizeMul;
+        const transform = node.getComponent(UITransform);
+        if (transform) {
+            transform.setContentSize(size, size);
+        }
+        const labelNode = node.getChildByName('Text');
+        const labelTransform = labelNode ? labelNode.getComponent(UITransform) : null;
+        if (labelTransform) {
+            labelTransform.setContentSize(size, size);
+        }
+        const label = labelNode ? labelNode.getComponent(Label) : null;
+        if (label) {
+            label.fontSize = Math.round(size * 0.55);
+        }
         enemy.activate(
             config,
-            this.wave.hpMul,
+            hpMul === undefined ? this.wave.hpMul : hpMul,
             this.pool,
             this.handleEnemyDeath,
             this.player,
             this.stall,
             PROTOTYPE_ONLY.aggroMode,
             PROTOTYPE_ONLY.stallAggroRatio,
+            this.stallProvider,
         );
         this.activeEnemies.push(enemy);
         return true;

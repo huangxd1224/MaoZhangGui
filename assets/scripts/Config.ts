@@ -594,7 +594,7 @@ export interface StallConfig {
 }
 
 export const STALLS: StallConfig[] = [
-    { id: 'milk_tea', name: '奶茶摊', type: 'slow_aura', cost: 80, hp: 60, radius: 170, repairCost: 30, inPrototype: true, slowFactor: 0.35 },
+    { id: 'milk_tea', name: '奶茶摊', type: 'slow_aura', cost: 25, hp: 60, radius: 170, repairCost: 30, inPrototype: true, slowFactor: 0.35 },
     { id: 'popcorn_stall', name: '爆米花机摊', type: 'aoe_damage', cost: 120, hp: 60, radius: 140, repairCost: 45, inPrototype: false, cooldownSec: 3.0, damage: 30 },
     { id: 'speaker', name: '大音响摊', type: 'knockback_taunt', cost: 150, hp: 60, radius: 160, repairCost: 60, inPrototype: false },
 ];
@@ -708,6 +708,43 @@ export interface PrototypeOnlyConfig {
     slotSpacing: number;
     /** 栏位与屏幕边缘的间距（像素） */
     slotBarMargin: number;
+    /**
+     * 摆摊固定点（相对**基地摊位中心**的偏移，像素）。
+     * Step 7：间歇期只能在这些固定点摆摊。
+     */
+    stallPoints: { x: number; y: number }[];
+    /** 防御摊色块边长（像素） */
+    stallSize: number;
+    /** 防御摊血条尺寸（像素） */
+    stallHpBarWidth: number;
+    stallHpBarHeight: number;
+    /** 敌人啃摊子的间隔（秒）：每次按 GLOBAL.stallTouchDamage 扣血 */
+    stallAttackIntervalSec: number;
+    /** 减速光环每帧刷新的减速剩余时间（秒）：离开光环即失效 */
+    slowAuraRefreshSec: number;
+    /**
+     * 精英是否吃波次血量倍率。
+     * false = 精英血量固定读 EnemyConfig.hp（大胃王 1500），
+     * 乘上第 10 波的 hpMul 4.15 会变成 6225 —— 那是错的。
+     */
+    eliteUsesWaveHpMul: boolean;
+    /** 精英色块边长倍率（视觉） */
+    eliteSizeMul: number;
+    /** 精英血条尺寸（像素，屏幕顶部单独显示） */
+    eliteHpBarWidth: number;
+    eliteHpBarHeight: number;
+    /** 基地血条尺寸（像素，屏幕顶部显示） */
+    baseHpBarWidth: number;
+    baseHpBarHeight: number;
+    /** 摆摊面板几何（像素） */
+    stallPanelWidth: number;
+    stallPanelHeight: number;
+    stallOptionWidth: number;
+    stallOptionHeight: number;
+    stallOptionSpacing: number;
+    /** 结算面板几何（像素） */
+    resultPanelWidth: number;
+    resultPanelHeight: number;
 }
 
 export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
@@ -742,4 +779,28 @@ export const PROTOTYPE_ONLY: PrototypeOnlyConfig = {
     slotSize: 52,
     slotSpacing: 8,
     slotBarMargin: 20,
+    stallPoints: [
+        { x: -200, y: 150 },
+        { x: 200, y: 150 },
+        { x: -200, y: -150 },
+        { x: 200, y: -150 },
+    ],
+    stallSize: 56,
+    stallHpBarWidth: 56,
+    stallHpBarHeight: 6,
+    stallAttackIntervalSec: 0.5,
+    slowAuraRefreshSec: 0.2,
+    eliteUsesWaveHpMul: false,
+    eliteSizeMul: 2,
+    eliteHpBarWidth: 420,
+    eliteHpBarHeight: 18,
+    baseHpBarWidth: 320,
+    baseHpBarHeight: 16,
+    stallPanelWidth: 660,
+    stallPanelHeight: 240,
+    stallOptionWidth: 190,
+    stallOptionHeight: 140,
+    stallOptionSpacing: 20,
+    resultPanelWidth: 560,
+    resultPanelHeight: 340,
 };
